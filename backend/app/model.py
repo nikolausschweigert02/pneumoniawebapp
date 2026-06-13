@@ -60,20 +60,34 @@ class PneumoniaPredictor:
             target_class = 1 if probability >= 0.5 else 0
             cam = self._gradcam(logits, target_class, image.size)
 
-        region_name, region_score = self._most_opaque_region(image)
+        region_name, region_score, region_scores = self._region_analysis(image)
         if cam is None:
             cam = self._regional_heatmap(image.size, region_name)
 
         heatmap_url = self._save_heatmap(image, cam)
         prediction = "PNEUMONIA" if probability >= 0.5 else "NORMAL"
+        confidence = self._confidence(probability)
+        opacity_pattern = self._opacity_pattern(prediction, region_score, region_scores)
 
         return {
             "prediction": prediction,
             "probability": round(probability, 4),
-            "confidence": self._confidence(probability),
+            "confidence": confidence,
             "explanation": self._explanation(prediction, region_name, region_score),
             "recommendation": self._recommendation(prediction, probability),
-            "heatmap_url": heatmap_url
+            "heatmap_url": heatmap_url,
+            "suspicious_region": region_name,
+            "region_opacity_score": round(region_score, 4),
+            "opacity_pattern": opacity_pattern,
+            "key_findings": self._key_findings(
+                prediction=prediction,
+                probability=probability,
+                confidence=confidence,
+                region_name=region_name,
+                region_score=region_score,
+                opacity_pattern=opacity_pattern
+            ),
+            "model_mode": "trained_checkpoint" if self.using_checkpoint else "demo_heuristic"
         }
 
     def _build_model(self) -> nn.Module:
@@ -161,14 +175,14 @@ class PneumoniaPredictor:
         return (cam_np - cam_min) / (cam_max - cam_min)
 
     def _opacity_probability(self, image: Image.Image) -> float:
-        _, best_score = self._most_opaque_region(image)
+        _, best_score, _ = self._region_analysis(image)
         gray = np.asarray(ImageOps.grayscale(image.resize((224, 224))), dtype=np.float32) / 255.0
         contrast = max(0.0, best_score)
         texture = float(gray.std())
         probability = 0.38 + (contrast * 2.4) + (texture * 0.28)
         return float(np.clip(probability, 0.05, 0.98))
 
-    def _most_opaque_region(self, image: Image.Image) -> tuple[str, float]:
+    def _region_analysis(self, image: Image.Image) -> tuple[str, float, dict[str, float]]:
         gray = np.asarray(ImageOps.grayscale(image.resize((224, 224))), dtype=np.float32) / 255.0
         height, width = gray.shape
         global_mean = float(gray.mean())
@@ -179,7 +193,8 @@ class PneumoniaPredictor:
             "lower right lung": gray[int(height * 0.54):int(height * 0.88), int(width * 0.54):int(width * 0.86)]
         }
         scores = {name: float(region.mean()) - global_mean for name, region in regions.items()}
-        return max(scores.items(), key=lambda item: item[1])
+        region_name, region_score = max(scores.items(), key=lambda item: item[1])
+        return region_name, region_score, scores
 
     def _regional_heatmap(self, image_size: tuple[int, int], region_name: str) -> np.ndarray:
         width, height = image_size
@@ -222,6 +237,53 @@ class PneumoniaPredictor:
         if distance >= 0.18:
             return "moderate"
         return "low"
+
+    def _opacity_pattern(
+        self,
+        prediction: str,
+        region_score: float,
+        region_scores: dict[str, float]
+    ) -> str:
+        if prediction == "NORMAL":
+            return "low_suspicion"
+
+        sorted_scores = sorted(region_scores.values(), reverse=True)
+        second_best = sorted_scores[1] if len(sorted_scores) > 1 else 0.0
+        if region_score > 0.08 and region_score - second_best > 0.035:
+            return "focal"
+        if region_score > 0.03:
+            return "multifocal_or_diffuse"
+        return "subtle"
+
+    def _key_findings(
+        self,
+        prediction: str,
+        probability: float,
+        confidence: str,
+        region_name: str,
+        region_score: float,
+        opacity_pattern: str
+    ) -> list[str]:
+        percent = round(probability * 100)
+        score_description = "above" if region_score > 0 else "not above"
+
+        findings = [
+            f"AI pneumonia probability is {percent}% with {confidence} confidence.",
+            f"Most influential region: {region_name}.",
+            f"Regional opacity signal is {score_description} the image baseline."
+        ]
+
+        if prediction == "PNEUMONIA":
+            if opacity_pattern == "focal":
+                findings.append(f"Pattern appears focal, centered on the {region_name}.")
+            elif opacity_pattern == "multifocal_or_diffuse":
+                findings.append("Opacity signal appears broader rather than isolated to one small focus.")
+            else:
+                findings.append("Pneumonia probability is elevated, but the opacity signal is subtle.")
+        else:
+            findings.append("No region crossed the MVP pneumonia threshold, but clinical correlation is still required.")
+
+        return findings
 
     def _explanation(self, prediction: str, region_name: str, region_score: float) -> str:
         if prediction == "PNEUMONIA":

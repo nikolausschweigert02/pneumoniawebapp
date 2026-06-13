@@ -97,6 +97,22 @@ export default function RecommendationsPage() {
         <p className="mt-5 max-w-4xl text-base leading-7">{actionPlan.summary}</p>
       </section>
 
+      <section className="mt-6 rounded-3xl border border-indigo-100 bg-white p-6 shadow-sm">
+        <h2 className="text-sm font-semibold uppercase tracking-[0.2em] text-indigo-700">
+          Image-specific findings used for this plan
+        </h2>
+        <ul className="mt-5 grid gap-3 md:grid-cols-2">
+          {actionPlan.imageSpecificFindings.map((finding) => (
+            <li key={finding} className="rounded-2xl bg-indigo-50 p-4 text-sm leading-6 text-indigo-950">
+              {finding}
+            </li>
+          ))}
+          <li className="rounded-2xl bg-slate-50 p-4 text-sm leading-6 text-slate-700">
+            Analysis mode: {analysis.model_mode === "trained_checkpoint" ? "trained checkpoint" : "MVP demo heuristic"}
+          </li>
+        </ul>
+      </section>
+
       <section className="mt-6 grid gap-6 lg:grid-cols-2">
         {actionPlan.sections.map((section, sectionIndex) => (
           <article key={section.title} className="rounded-3xl border border-white/80 bg-white p-6 shadow-sm">

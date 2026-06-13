@@ -87,11 +87,22 @@ Response:
   "confidence": "high",
   "explanation": "Opacity detected in lower right lung",
   "recommendation": "Radiologist review recommended",
-  "heatmap_url": "http://localhost:8000/static/heatmaps/example.png"
+  "heatmap_url": "http://localhost:8000/static/heatmaps/example.png",
+  "suspicious_region": "lower right lung",
+  "region_opacity_score": 0.14,
+  "opacity_pattern": "focal",
+  "key_findings": [
+    "AI pneumonia probability is 91% with high confidence.",
+    "Most influential region: lower right lung.",
+    "Pattern appears focal, centered on the lower right lung."
+  ],
+  "model_mode": "demo_heuristic"
 }
 ```
 
 The backend saves generated heatmaps in `backend/static/heatmaps/` and serves them from `/static/heatmaps/...`.
+The structured finding fields power the physician action plan so recommendations can reference the specific
+heatmap region, opacity pattern, confidence, and probability for each uploaded X-ray.
 
 ## Model behavior
 
@@ -166,10 +177,11 @@ FastAPI service.
    - Clinical recommendation card
 5. Click **View doctor recommendations** to open the physician action plan:
    - Triage guidance
-   - Immediate clinical checks
-   - Imaging and diagnostic next steps
-   - Treatment considerations
-   - Disposition and follow-up
+   - Image-specific findings used for the plan
+   - Highlighted-region review steps
+   - Pattern-specific interpretation
+   - Targeted bedside correlation
+   - Case-specific diagnostics and disposition
    - Documentation note
 
 ## Development notes

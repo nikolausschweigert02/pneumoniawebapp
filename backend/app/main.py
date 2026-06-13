@@ -2,6 +2,7 @@ from __future__ import annotations
 
 import os
 from pathlib import Path
+from typing import Any
 
 from fastapi import FastAPI, File, HTTPException, Request, UploadFile
 from fastapi.middleware.cors import CORSMiddleware
@@ -40,7 +41,7 @@ predictor = PneumoniaPredictor(heatmap_dir=HEATMAP_DIR)
 
 
 @app.get("/health")
-def health() -> dict[str, str | bool]:
+def health() -> dict[str, Any]:
     return {
         "status": "ok",
         "model_loaded": predictor.using_checkpoint,

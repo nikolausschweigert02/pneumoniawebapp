@@ -38,6 +38,7 @@ export default function RecommendationsPage() {
   const [analysis, setAnalysis] = useState<StoredAnalysis | null>(null);
 
   useEffect(() => {
+    // eslint-disable-next-line react-hooks/set-state-in-effect -- hydrate analysis from browser session
     setAnalysis(loadStoredAnalysis());
   }, []);
 

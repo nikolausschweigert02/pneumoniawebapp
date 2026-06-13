@@ -5,6 +5,20 @@ import Link from "next/link";
 import { useEffect, useState } from "react";
 import type { StoredAnalysis } from "@/lib/types";
 
+type ModelInfo = {
+  architecture: string;
+  classifier_head: string;
+  classes: Record<string, string>;
+  screening_threshold: number;
+  screening_rule: string;
+  preprocessing: string;
+  gradcam_layer: string;
+  gradcam_note: string;
+  model_loaded: boolean;
+  model_mode: string;
+  model_name: string;
+};
+
 function loadStoredAnalysis() {
   if (typeof window === "undefined") {
     return null;
@@ -53,12 +67,35 @@ function ResultCard({
 
 export default function ResultsPage() {
   const [analysis, setAnalysis] = useState<StoredAnalysis | null>(null);
+  const [heatmapView, setHeatmapView] = useState<"overlay" | "raw">("overlay");
+  const [modelInfo, setModelInfo] = useState<ModelInfo | null>(null);
 
   useEffect(() => {
+    // Session storage is only available after client mount.
+    // eslint-disable-next-line react-hooks/set-state-in-effect -- hydrate analysis from browser session
     setAnalysis(loadStoredAnalysis());
   }, []);
 
+  useEffect(() => {
+    async function loadModelInfo() {
+      try {
+        const response = await fetch("/api/health");
+        if (!response.ok) {
+          return;
+        }
+        const payload = await response.json();
+        setModelInfo(payload.model_info ?? null);
+      } catch {
+        setModelInfo(null);
+      }
+    }
+
+    loadModelInfo();
+  }, []);
+
   const heatmapUrl = analysis?.heatmap_url ? resolveHeatmapUrl(analysis.heatmap_url) : "";
+  const heatmapRawUrl = analysis?.heatmap_raw_url ? resolveHeatmapUrl(analysis.heatmap_raw_url) : heatmapUrl;
+  const activeHeatmapUrl = heatmapView === "raw" ? heatmapRawUrl : heatmapUrl;
 
   if (!analysis) {
     return (
@@ -161,10 +198,34 @@ export default function ResultsPage() {
           </ResultCard>
 
           <ResultCard title="Grad-CAM influence map">
+            <div className="mb-4 flex flex-wrap gap-2">
+              <button
+                type="button"
+                onClick={() => setHeatmapView("overlay")}
+                className={`rounded-xl px-4 py-2 text-sm font-semibold transition ${
+                  heatmapView === "overlay"
+                    ? "bg-sky-600 text-white"
+                    : "border border-slate-200 bg-white text-slate-700 hover:bg-slate-50"
+                }`}
+              >
+                Overlay on X-ray
+              </button>
+              <button
+                type="button"
+                onClick={() => setHeatmapView("raw")}
+                className={`rounded-xl px-4 py-2 text-sm font-semibold transition ${
+                  heatmapView === "raw"
+                    ? "bg-sky-600 text-white"
+                    : "border border-slate-200 bg-white text-slate-700 hover:bg-slate-50"
+                }`}
+              >
+                Raw influence map
+              </button>
+            </div>
             <div className="overflow-hidden rounded-2xl bg-slate-950">
               <Image
-                src={heatmapUrl}
-                alt="Grad-CAM influence map"
+                src={activeHeatmapUrl}
+                alt={heatmapView === "raw" ? "Raw Grad-CAM influence map" : "Grad-CAM overlay"}
                 width={720}
                 height={720}
                 unoptimized
@@ -172,9 +233,47 @@ export default function ResultsPage() {
               />
             </div>
             <p className="mt-3 text-sm leading-6 text-slate-500">
-              {analysis.gradcam_note ?? analysis.explanation}
+              {heatmapView === "raw"
+                ? "Raw map shows model influence only, without blending onto the original X-ray."
+                : analysis.gradcam_note ?? analysis.explanation}
             </p>
+            {analysis.gradcam_class_explained !== undefined ? (
+              <p className="mt-2 text-xs text-slate-400">
+                Explained class: {analysis.gradcam_class_explained} (
+                {analysis.gradcam_class_explained === 1 ? "PNEUMONIA" : "NORMAL"})
+              </p>
+            ) : null}
           </ResultCard>
+
+          {modelInfo ? (
+            <ResultCard title="Model info" accent="md:col-span-2 border-violet-200">
+              <div className="grid gap-3 md:grid-cols-2">
+                <p className="text-sm text-slate-700">
+                  <span className="font-semibold text-slate-900">Architecture:</span> {modelInfo.architecture}
+                </p>
+                <p className="text-sm text-slate-700">
+                  <span className="font-semibold text-slate-900">Mode:</span> {modelInfo.model_mode}
+                </p>
+                <p className="text-sm text-slate-700 md:col-span-2">
+                  <span className="font-semibold text-slate-900">Classifier head:</span>{" "}
+                  {modelInfo.classifier_head}
+                </p>
+                <p className="text-sm text-slate-700 md:col-span-2">
+                  <span className="font-semibold text-slate-900">Preprocessing:</span> {modelInfo.preprocessing}
+                </p>
+                <p className="text-sm text-slate-700">
+                  <span className="font-semibold text-slate-900">Screening threshold:</span>{" "}
+                  {modelInfo.screening_threshold}
+                </p>
+                <p className="text-sm text-slate-700">
+                  <span className="font-semibold text-slate-900">Grad-CAM layer:</span> {modelInfo.gradcam_layer}
+                </p>
+                <p className="text-sm text-slate-700 md:col-span-2">
+                  <span className="font-semibold text-slate-900">Rule:</span> {modelInfo.screening_rule}
+                </p>
+              </div>
+            </ResultCard>
+          ) : null}
 
           <ResultCard title="Clinician note" accent="md:col-span-2 border-sky-200">
             <p className="text-lg leading-8 text-slate-700">{analysis.recommendation}</p>

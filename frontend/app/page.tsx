@@ -125,7 +125,7 @@ export default function Home() {
             clinician note, and educational disclaimers for physician review.
           </p>
           <div className="mt-8 grid gap-4 text-sm text-slate-600 sm:grid-cols-3">
-            {["ResNet18 inference", "Grad-CAM heatmap", "Clinical summary"].map((item) => (
+            {["ResNet18 inference", "Grad-CAM influence map", "Clinician summary"].map((item) => (
               <div key={item} className="rounded-2xl border border-white/70 bg-white/80 p-4 shadow-sm">
                 <span className="font-semibold text-slate-900">{item}</span>
               </div>
@@ -153,9 +153,18 @@ export default function Home() {
               onChange={handleFileChange}
               className="hidden"
             />
-            <div
-              className="block rounded-2xl bg-white px-6 py-10 transition"
-            >
+          <div
+            role="button"
+            tabIndex={0}
+            onClick={() => fileInputRef.current?.click()}
+            onKeyDown={(event) => {
+              if (event.key === "Enter" || event.key === " ") {
+                event.preventDefault();
+                fileInputRef.current?.click();
+              }
+            }}
+            className="block cursor-pointer rounded-2xl bg-white px-6 py-10 transition"
+          >
               {previewUrl ? (
                 <div>
                   <Image

@@ -7,7 +7,7 @@ const configuredDevOrigins = process.env.NEXT_ALLOWED_DEV_ORIGINS?.split(",")
 const nextConfig: NextConfig = {
   allowedDevOrigins: configuredDevOrigins?.length
     ? configuredDevOrigins
-    : ["*.agent.cvm.dev", "*.cvm.dev", "localhost"],
+    : ["*.agent.cvm.dev", "*.cvm.dev", "localhost", "127.0.0.1"],
   agentRules: false,
   images: {
     remotePatterns: [

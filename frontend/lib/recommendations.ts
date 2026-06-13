@@ -128,7 +128,6 @@ export function buildDoctorActionPlan(analysis: StoredAnalysis): DoctorActionPla
   const screeningThreshold = formatModelScore(analysis.screening_threshold ?? 0.2);
   const region = fallbackRegion(analysis);
   const pattern = analysis.opacity_pattern ?? (analysis.prediction === "PNEUMONIA" ? "subtle" : "low_suspicion");
-  const regionScore = analysis.region_opacity_score ?? 0;
   const imageSpecificFindings = analysis.key_findings?.length
     ? analysis.key_findings
     : [

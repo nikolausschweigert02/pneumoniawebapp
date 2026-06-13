@@ -1,7 +1,7 @@
 "use client";
 
 import Link from "next/link";
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import { buildDoctorActionPlan } from "@/lib/recommendations";
 import type { StoredAnalysis } from "@/lib/types";
 
@@ -35,7 +35,11 @@ function toneClasses(tone: "amber" | "emerald" | "red") {
 }
 
 export default function RecommendationsPage() {
-  const [analysis] = useState<StoredAnalysis | null>(loadStoredAnalysis);
+  const [analysis, setAnalysis] = useState<StoredAnalysis | null>(null);
+
+  useEffect(() => {
+    setAnalysis(loadStoredAnalysis());
+  }, []);
 
   if (!analysis) {
     return (
@@ -141,7 +145,7 @@ export default function RecommendationsPage() {
       <section className="mt-6 rounded-3xl border border-slate-200 bg-white p-6 shadow-sm">
         <h2 className="text-xl font-bold text-slate-950">Documentation note</h2>
         <p className="mt-3 leading-7 text-slate-600">
-          Record the AI prediction, probability, heatmap region, clinician interpretation, and the final medical
+          Record the AI screening label, PNEUMONIA model score, heatmap region, clinician interpretation, and the final medical
           decision. This MVP is an advisory tool and does not replace radiologist review, local protocols, or
           physician judgment.
         </p>

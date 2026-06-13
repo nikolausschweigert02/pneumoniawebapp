@@ -2,8 +2,25 @@
 
 import Image from "next/image";
 import Link from "next/link";
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import type { StoredAnalysis } from "@/lib/types";
+
+function loadStoredAnalysis() {
+  if (typeof window === "undefined") {
+    return null;
+  }
+
+  const stored = window.sessionStorage.getItem("pneumonia-analysis");
+  if (!stored) {
+    return null;
+  }
+
+  try {
+    return JSON.parse(stored) as StoredAnalysis;
+  } catch {
+    return null;
+  }
+}
 
 function formatPercent(value: number) {
   return `${Math.round(value * 100)}%`;
@@ -35,22 +52,11 @@ function ResultCard({
 }
 
 export default function ResultsPage() {
-  const [analysis] = useState<StoredAnalysis | null>(() => {
-    if (typeof window === "undefined") {
-      return null;
-    }
+  const [analysis, setAnalysis] = useState<StoredAnalysis | null>(null);
 
-    const stored = window.sessionStorage.getItem("pneumonia-analysis");
-    if (!stored) {
-      return null;
-    }
-
-    try {
-      return JSON.parse(stored) as StoredAnalysis;
-    } catch {
-      return null;
-    }
-  });
+  useEffect(() => {
+    setAnalysis(loadStoredAnalysis());
+  }, []);
 
   const heatmapUrl = analysis?.heatmap_url ? resolveHeatmapUrl(analysis.heatmap_url) : "";
 

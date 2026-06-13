@@ -10,14 +10,13 @@ GRADCAM_NOTE = (
 )
 
 CLINICIAN_PNEUMONIA_TEXT = (
-    "AI-assisted screening result: pneumonia-like pattern flagged. Please review the X-ray manually "
-    "and correlate with symptoms, oxygen saturation, temperature, inflammatory markers, prior imaging "
-    "and clinical context. Radiologist review is recommended before treatment decisions."
+    "Possible pneumonia pattern detected. Please review the X-ray manually and check symptoms, "
+    "vitals, and labs. Radiologist review is recommended."
 )
 
 CLINICIAN_NORMAL_TEXT = (
-    "AI-assisted screening result: normal-like pattern. A normal AI output does not rule out pneumonia. "
-    "Please review the image manually and correlate with the clinical context."
+    "No strong pneumonia pattern detected by the AI. Please still review the image manually "
+    "and consider the clinical context."
 )
 
 PATIENT_TEXT = (

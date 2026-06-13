@@ -38,6 +38,7 @@ export default function RecommendationsPage() {
   const [analysis, setAnalysis] = useState<StoredAnalysis | null>(null);
 
   useEffect(() => {
+    // eslint-disable-next-line react-hooks/set-state-in-effect -- hydrate analysis from browser session
     setAnalysis(loadStoredAnalysis());
   }, []);
 
@@ -95,7 +96,7 @@ export default function RecommendationsPage() {
             <p className="mt-3 text-3xl font-bold">{actionPlan.triageLevel}</p>
           </div>
           <div className="rounded-2xl bg-white/70 px-5 py-4 text-sm font-semibold">
-            {analysis.screening_label ?? analysis.prediction} · {Math.round((analysis.model_score_pneumonia ?? analysis.probability) * 100)}% model score · {analysis.confidence} confidence
+            {analysis.prediction} · {Math.round((analysis.model_score_pneumonia ?? analysis.probability) * 100)}% · {analysis.confidence} confidence
           </div>
         </div>
         <p className="mt-5 max-w-4xl text-base leading-7">{actionPlan.summary}</p>
@@ -145,7 +146,7 @@ export default function RecommendationsPage() {
       <section className="mt-6 rounded-3xl border border-slate-200 bg-white p-6 shadow-sm">
         <h2 className="text-xl font-bold text-slate-950">Documentation note</h2>
         <p className="mt-3 leading-7 text-slate-600">
-          Record the AI screening label, PNEUMONIA model score, heatmap region, clinician interpretation, and the final medical
+          Record the AI prediction, probability, heatmap region, clinician interpretation, and the final medical
           decision. This MVP is an advisory tool and does not replace radiologist review, local protocols, or
           physician judgment.
         </p>

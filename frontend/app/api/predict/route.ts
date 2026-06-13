@@ -42,7 +42,6 @@ export async function POST(request: NextRequest) {
   const payload = JSON.parse(responseText);
   return NextResponse.json({
     ...payload,
-    heatmap_url: proxiedHeatmapUrl(payload.heatmap_url),
-    heatmap_raw_url: proxiedHeatmapUrl(payload.heatmap_raw_url)
+    heatmap_url: proxiedHeatmapUrl(payload.heatmap_url)
   });
 }

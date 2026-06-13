@@ -30,9 +30,6 @@ export default function RootLayout({
               <Link href="/recommendations" className="rounded-xl px-3 py-2 hover:bg-slate-100">
                 Recommendations
               </Link>
-              <Link href="/methods" className="rounded-xl px-3 py-2 hover:bg-slate-100">
-                Methods
-              </Link>
             </div>
           </nav>
         </header>

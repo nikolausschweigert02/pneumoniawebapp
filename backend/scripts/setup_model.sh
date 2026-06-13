@@ -15,18 +15,10 @@ copy_file() {
   fi
 
   cp "$source" "$target"
-  local size
-  size=$(stat -f%z "$target" 2>/dev/null || stat -c%s "$target")
-  echo "Copied $filename -> $target (${size} Bytes)"
+  echo "Copied $filename -> $target"
 }
 
 copy_file "model1_resnet18_pneumonia.pth"
-
-PTH_SIZE=$(stat -f%z "$TARGET_DIR/model1_resnet18_pneumonia.pth" 2>/dev/null || stat -c%s "$TARGET_DIR/model1_resnet18_pneumonia.pth")
-if [[ "$PTH_SIZE" -lt 1000000 ]]; then
-  echo "FEHLER: model1_resnet18_pneumonia.pth ist zu klein (${PTH_SIZE} Bytes)." >&2
-  exit 1
-fi
 copy_file "model1_config.json"
 copy_file "model1_summary.txt"
 

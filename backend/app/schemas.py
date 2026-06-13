@@ -16,8 +16,6 @@ class PredictionResponse(BaseModel):
     gradcam_note: str
     recommendation: str
     heatmap_url: str
-    heatmap_raw_url: str
-    gradcam_class_explained: int = Field(..., examples=[1])
     suspicious_region: str = Field(..., examples=["lower right lung field"])
     region_opacity_score: float = Field(..., examples=[0.14])
     opacity_pattern: str = Field(..., examples=["focal"])

@@ -10,11 +10,6 @@ const PREDICT_ENDPOINT = process.env.NEXT_PUBLIC_API_BASE_URL
   ? `${API_BASE_URL.replace(/\/$/, "")}/predict`
   : "/api/predict";
 
-const DEMO_SAMPLES = [
-  { label: "Try demo NORMAL example", path: "/samples/normal.jpg", fileName: "demo-normal.jpg" },
-  { label: "Try demo PNEUMONIA example", path: "/samples/pneumonia.jpg", fileName: "demo-pneumonia.jpg" }
-] as const;
-
 function fileToDataUrl(file: File): Promise<string> {
   return new Promise((resolve, reject) => {
     const reader = new FileReader();
@@ -72,21 +67,6 @@ export default function Home() {
     event.preventDefault();
     setIsDragging(false);
     await selectFile(event.dataTransfer.files?.[0] ?? null);
-  }
-
-  async function loadDemoSample(path: string, fileName: string) {
-    try {
-      setError("");
-      const response = await fetch(path);
-      if (!response.ok) {
-        throw new Error("Could not load demo image.");
-      }
-      const blob = await response.blob();
-      const file = new File([blob], fileName, { type: blob.type || "image/jpeg" });
-      await selectFile(file);
-    } catch (err) {
-      setError(err instanceof Error ? err.message : "Could not load demo image.");
-    }
   }
 
   async function handleSubmit(event: FormEvent<HTMLFormElement>) {
@@ -230,19 +210,6 @@ export default function Home() {
               Selected: <span className="font-medium text-slate-900">{selectedFile.name}</span>
             </p>
           ) : null}
-
-          <div className="mt-4 grid gap-3 sm:grid-cols-2">
-            {DEMO_SAMPLES.map((sample) => (
-              <button
-                key={sample.path}
-                type="button"
-                onClick={() => loadDemoSample(sample.path, sample.fileName)}
-                className="rounded-2xl border border-slate-200 bg-slate-50 px-4 py-3 text-left text-sm font-semibold text-slate-800 transition hover:border-sky-300 hover:bg-sky-50"
-              >
-                {sample.label}
-              </button>
-            ))}
-          </div>
 
           {error ? (
             <div className="mt-4 rounded-2xl border border-red-200 bg-red-50 p-4 text-sm text-red-700">

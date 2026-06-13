@@ -45,6 +45,12 @@ A doctor uploads a chest X-ray image and receives:
 │   └── requirements.txt
 ├── frontend
 │   ├── app
+│   │   ├── api
+│   │   │   ├── heatmaps
+│   │   │   │   └── [filename]
+│   │   │   │       └── route.ts
+│   │   │   └── predict
+│   │   │       └── route.ts
 │   │   ├── globals.css
 │   │   ├── layout.tsx
 │   │   ├── page.tsx
@@ -104,7 +110,7 @@ Open two terminals from the repository root.
 
 ```bash
 cd backend
-python -m venv .venv
+python3 -m venv .venv
 source .venv/bin/activate
 pip install -r requirements.txt
 uvicorn app.main:app --reload --host 0.0.0.0 --port 8000
@@ -126,11 +132,21 @@ npm run dev
 
 The web app will be available at `http://localhost:3000`.
 
-If your backend is running on a different URL, copy `frontend/.env.example` to `frontend/.env.local` and update:
+By default, browser uploads go to the frontend's same-origin `/api/predict` route.
+That Next.js route forwards the image to FastAPI through `BACKEND_INTERNAL_URL`
+(`http://127.0.0.1:8000` by default), then rewrites the returned heatmap URL to
+`/api/heatmaps/...`. This avoids CORS and `localhost` issues in remote/cloud port
+previews.
+
+If your backend is running on a different internal URL, copy `frontend/.env.example`
+to `frontend/.env.local` and update:
 
 ```bash
-NEXT_PUBLIC_API_BASE_URL=http://localhost:8000
+BACKEND_INTERNAL_URL=http://127.0.0.1:8000
 ```
+
+Only set `NEXT_PUBLIC_API_BASE_URL` when the user's browser can directly reach the
+FastAPI service.
 
 ## User flow
 
@@ -149,6 +165,8 @@ NEXT_PUBLIC_API_BASE_URL=http://localhost:8000
 ## Development notes
 
 - Frontend upload requests are sent as `multipart/form-data`.
+- The homepage supports both explicit file selection and drag-and-drop uploads.
+- In development, `next.config.ts` allows common cloud preview origins so client JavaScript can load correctly through forwarded ports.
 - The backend allows CORS from `http://localhost:3000` and `http://127.0.0.1:3000` by default.
 - To change CORS origins, set `FRONTEND_ORIGINS` as a comma-separated list.
 - Generated heatmaps and model checkpoints are ignored by Git.

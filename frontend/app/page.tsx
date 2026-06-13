@@ -2,10 +2,13 @@
 
 import Image from "next/image";
 import { useRouter } from "next/navigation";
-import { ChangeEvent, FormEvent, useMemo, useState } from "react";
+import { ChangeEvent, DragEvent, FormEvent, useRef, useState } from "react";
 import type { PredictionResponse, StoredAnalysis } from "@/lib/types";
 
 const API_BASE_URL = process.env.NEXT_PUBLIC_API_BASE_URL ?? "http://localhost:8000";
+const PREDICT_ENDPOINT = process.env.NEXT_PUBLIC_API_BASE_URL
+  ? `${API_BASE_URL.replace(/\/$/, "")}/predict`
+  : "/api/predict";
 
 function fileToDataUrl(file: File): Promise<string> {
   return new Promise((resolve, reject) => {
@@ -18,15 +21,16 @@ function fileToDataUrl(file: File): Promise<string> {
 
 export default function Home() {
   const router = useRouter();
+  const fileInputRef = useRef<HTMLInputElement>(null);
   const [selectedFile, setSelectedFile] = useState<File | null>(null);
   const [previewUrl, setPreviewUrl] = useState<string>("");
+  const [isDragging, setIsDragging] = useState(false);
   const [isAnalyzing, setIsAnalyzing] = useState(false);
   const [error, setError] = useState<string>("");
 
-  const canAnalyze = useMemo(() => selectedFile !== null && !isAnalyzing, [selectedFile, isAnalyzing]);
+  const canAnalyze = selectedFile !== null && !isAnalyzing;
 
-  async function handleFileChange(event: ChangeEvent<HTMLInputElement>) {
-    const file = event.target.files?.[0] ?? null;
+  async function selectFile(file: File | null) {
     setError("");
     setSelectedFile(file);
 
@@ -45,6 +49,26 @@ export default function Home() {
     setPreviewUrl(await fileToDataUrl(file));
   }
 
+  async function handleFileChange(event: ChangeEvent<HTMLInputElement>) {
+    await selectFile(event.target.files?.[0] ?? null);
+  }
+
+  function handleDragOver(event: DragEvent<HTMLDivElement>) {
+    event.preventDefault();
+    setIsDragging(true);
+  }
+
+  function handleDragLeave(event: DragEvent<HTMLDivElement>) {
+    event.preventDefault();
+    setIsDragging(false);
+  }
+
+  async function handleDrop(event: DragEvent<HTMLDivElement>) {
+    event.preventDefault();
+    setIsDragging(false);
+    await selectFile(event.dataTransfer.files?.[0] ?? null);
+  }
+
   async function handleSubmit(event: FormEvent<HTMLFormElement>) {
     event.preventDefault();
     if (!selectedFile) {
@@ -59,7 +83,7 @@ export default function Home() {
       const formData = new FormData();
       formData.append("file", selectedFile);
 
-      const response = await fetch(`${API_BASE_URL}/predict`, {
+      const response = await fetch(PREDICT_ENDPOINT, {
         method: "POST",
         body: formData
       });
@@ -113,37 +137,63 @@ export default function Home() {
           onSubmit={handleSubmit}
           className="rounded-3xl border border-white/80 bg-white/90 p-6 shadow-2xl shadow-sky-900/10 backdrop-blur"
         >
-          <div className="rounded-2xl border-2 border-dashed border-sky-200 bg-sky-50/60 p-6 text-center">
+          <div
+            onDragOver={handleDragOver}
+            onDragLeave={handleDragLeave}
+            onDrop={handleDrop}
+            className={`rounded-2xl border-2 border-dashed p-6 text-center transition ${
+              isDragging ? "border-sky-500 bg-sky-100" : "border-sky-200 bg-sky-50/60"
+            }`}
+          >
             <input
               id="xray-upload"
+              ref={fileInputRef}
               type="file"
               accept="image/*"
               onChange={handleFileChange}
-              className="sr-only"
+              className="hidden"
             />
-            <label
-              htmlFor="xray-upload"
-              className="block cursor-pointer rounded-2xl bg-white px-6 py-10 transition hover:bg-sky-50"
+            <div
+              className="block rounded-2xl bg-white px-6 py-10 transition"
             >
               {previewUrl ? (
-                <Image
-                  src={previewUrl}
-                  alt="Selected chest X-ray preview"
-                  width={520}
-                  height={420}
-                  unoptimized
-                  className="mx-auto max-h-[420px] rounded-xl object-contain"
-                />
+                <div>
+                  <Image
+                    src={previewUrl}
+                    alt="Selected chest X-ray preview"
+                    width={520}
+                    height={420}
+                    unoptimized
+                    className="mx-auto max-h-[420px] rounded-xl object-contain"
+                  />
+                  <button
+                    type="button"
+                    onClick={() => fileInputRef.current?.click()}
+                    className="mt-5 rounded-xl border border-sky-200 px-5 py-2 text-sm font-semibold text-sky-700 transition hover:bg-sky-50"
+                  >
+                    Choose a different image
+                  </button>
+                </div>
               ) : (
                 <div className="mx-auto max-w-sm">
                   <div className="mx-auto mb-4 flex h-16 w-16 items-center justify-center rounded-full bg-sky-100 text-3xl">
                     +
                   </div>
                   <p className="text-lg font-semibold text-slate-900">Choose chest X-ray image</p>
-                  <p className="mt-2 text-sm text-slate-500">PNG, JPG, JPEG, or WEBP files are supported.</p>
+                  <p className="mt-2 text-sm text-slate-500">
+                    Drag and drop an image here, or use the upload button below.
+                  </p>
+                  <button
+                    type="button"
+                    onClick={() => fileInputRef.current?.click()}
+                    className="mt-5 rounded-xl bg-sky-600 px-5 py-3 text-sm font-semibold text-white shadow-sm transition hover:bg-sky-700"
+                  >
+                    Upload image
+                  </button>
+                  <p className="mt-3 text-xs text-slate-400">PNG, JPG, JPEG, or WEBP files are supported.</p>
                 </div>
               )}
-            </label>
+            </div>
           </div>
 
           {selectedFile ? (

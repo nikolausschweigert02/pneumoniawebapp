@@ -5,8 +5,6 @@ import Link from "next/link";
 import { useState } from "react";
 import type { StoredAnalysis } from "@/lib/types";
 
-const API_BASE_URL = process.env.NEXT_PUBLIC_API_BASE_URL ?? "http://localhost:8000";
-
 function formatPercent(value: number) {
   return `${Math.round(value * 100)}%`;
 }
@@ -16,7 +14,7 @@ function resolveHeatmapUrl(url: string) {
     return url;
   }
 
-  return `${API_BASE_URL}${url.startsWith("/") ? "" : "/"}${url}`;
+  return url.startsWith("/") ? url : `/${url}`;
 }
 
 function ResultCard({

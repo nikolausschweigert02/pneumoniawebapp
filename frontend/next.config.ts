@@ -1,6 +1,14 @@
 import type { NextConfig } from "next";
 
+const configuredDevOrigins = process.env.NEXT_ALLOWED_DEV_ORIGINS?.split(",")
+  .map((origin) => origin.trim())
+  .filter(Boolean);
+
 const nextConfig: NextConfig = {
+  allowedDevOrigins: configuredDevOrigins?.length
+    ? configuredDevOrigins
+    : ["*.agent.cvm.dev", "*.cvm.dev", "localhost"],
+  agentRules: false,
   images: {
     remotePatterns: [
       {

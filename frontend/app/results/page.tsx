@@ -2,7 +2,7 @@
 
 import Image from "next/image";
 import Link from "next/link";
-import { useEffect, useMemo, useState } from "react";
+import { useState } from "react";
 import type { StoredAnalysis } from "@/lib/types";
 
 const API_BASE_URL = process.env.NEXT_PUBLIC_API_BASE_URL ?? "http://localhost:8000";
@@ -37,19 +37,24 @@ function ResultCard({
 }
 
 export default function ResultsPage() {
-  const [analysis, setAnalysis] = useState<StoredAnalysis | null>(null);
-
-  useEffect(() => {
-    const stored = sessionStorage.getItem("pneumonia-analysis");
-    if (stored) {
-      setAnalysis(JSON.parse(stored) as StoredAnalysis);
+  const [analysis] = useState<StoredAnalysis | null>(() => {
+    if (typeof window === "undefined") {
+      return null;
     }
-  }, []);
 
-  const heatmapUrl = useMemo(
-    () => (analysis?.heatmap_url ? resolveHeatmapUrl(analysis.heatmap_url) : ""),
-    [analysis?.heatmap_url]
-  );
+    const stored = window.sessionStorage.getItem("pneumonia-analysis");
+    if (!stored) {
+      return null;
+    }
+
+    try {
+      return JSON.parse(stored) as StoredAnalysis;
+    } catch {
+      return null;
+    }
+  });
+
+  const heatmapUrl = analysis?.heatmap_url ? resolveHeatmapUrl(analysis.heatmap_url) : "";
 
   if (!analysis) {
     return (

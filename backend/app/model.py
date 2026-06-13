@@ -11,7 +11,7 @@ import numpy as np
 import torch
 import torch.nn as nn
 import torch.nn.functional as F
-from PIL import Image, ImageOps
+from PIL import Image, ImageFilter, ImageOps
 from torchvision import transforms
 from torchvision.models import ResNet18_Weights, resnet18
 
@@ -58,11 +58,13 @@ class PneumoniaPredictor:
                 probability = self._opacity_probability(image)
 
             target_class = 1 if probability >= 0.5 else 0
-            cam = self._gradcam(logits, target_class, image.size)
+            cam = self._gradcam(logits, target_class, image.size) if self.using_checkpoint else None
 
         region_name, region_score, region_scores = self._region_analysis(image)
         if cam is None:
-            cam = self._regional_heatmap(image.size, region_name)
+            cam = self._opacity_heatmap(image, region_name)
+        else:
+            cam = self._postprocess_heatmap(cam, image.size)
 
         heatmap_url = self._save_heatmap(image, cam)
         prediction = "PNEUMONIA" if probability >= 0.5 else "NORMAL"
@@ -214,10 +216,72 @@ class PneumoniaPredictor:
         )
         return heatmap / max(float(heatmap.max()), 1e-8)
 
+    def _opacity_heatmap(self, image: Image.Image, region_name: str) -> np.ndarray:
+        """Create a stable demo-mode heatmap from localized opacity signal."""
+        width, height = image.size
+        gray_image = ImageOps.grayscale(image).resize((width, height))
+        gray = np.asarray(gray_image, dtype=np.float32) / 255.0
+
+        local_background = np.asarray(
+            gray_image.filter(ImageFilter.GaussianBlur(radius=max(width, height) * 0.035)),
+            dtype=np.float32
+        ) / 255.0
+        opacity_signal = np.clip(gray - local_background, 0.0, None)
+        opacity_signal = self._normalize_heatmap(opacity_signal)
+
+        lung_mask = self._lung_mask(image.size)
+        regional_prior = self._regional_heatmap(image.size, region_name)
+        heatmap = ((opacity_signal * 0.72) + (regional_prior * 0.28)) * lung_mask
+        return self._postprocess_heatmap(heatmap, image.size)
+
+    def _postprocess_heatmap(self, heatmap: np.ndarray, image_size: tuple[int, int]) -> np.ndarray:
+        heatmap = np.nan_to_num(heatmap, nan=0.0, posinf=1.0, neginf=0.0)
+        heatmap = np.clip(heatmap, 0.0, None)
+        heatmap = self._normalize_heatmap(heatmap)
+        heatmap = heatmap * self._lung_mask(image_size)
+        heatmap = self._smooth_heatmap(heatmap, radius=max(image_size) * 0.018)
+        heatmap = self._normalize_heatmap(heatmap)
+        heatmap[heatmap < 0.12] = 0.0
+        return self._normalize_heatmap(heatmap)
+
+    def _normalize_heatmap(self, heatmap: np.ndarray) -> np.ndarray:
+        if heatmap.size == 0:
+            return heatmap
+
+        low, high = np.percentile(heatmap, [2, 98])
+        if high - low < 1e-8:
+            high = float(heatmap.max())
+            low = float(heatmap.min())
+
+        if high - low < 1e-8:
+            return np.zeros_like(heatmap, dtype=np.float32)
+
+        return np.clip((heatmap - low) / (high - low), 0.0, 1.0).astype(np.float32)
+
+    def _smooth_heatmap(self, heatmap: np.ndarray, radius: float) -> np.ndarray:
+        image = Image.fromarray((np.clip(heatmap, 0.0, 1.0) * 255).astype(np.uint8))
+        smoothed = image.filter(ImageFilter.GaussianBlur(radius=max(1.0, radius)))
+        return np.asarray(smoothed, dtype=np.float32) / 255.0
+
+    def _lung_mask(self, image_size: tuple[int, int]) -> np.ndarray:
+        width, height = image_size
+        y_grid, x_grid = np.mgrid[0:height, 0:width]
+        left = (
+            ((x_grid - width * 0.34) / (width * 0.22)) ** 2
+            + ((y_grid - height * 0.55) / (height * 0.34)) ** 2
+        ) <= 1.0
+        right = (
+            ((x_grid - width * 0.66) / (width * 0.22)) ** 2
+            + ((y_grid - height * 0.55) / (height * 0.34)) ** 2
+        ) <= 1.0
+        mask = np.logical_or(left, right).astype(np.float32)
+        return self._smooth_heatmap(mask, radius=max(width, height) * 0.012)
+
     def _save_heatmap(self, image: Image.Image, cam: np.ndarray) -> str:
         base = np.asarray(image, dtype=np.float32) / 255.0
         heat = self._colorize(cam)
-        overlay = np.clip((base * 0.55) + (heat * 0.45), 0.0, 1.0)
+        alpha = np.clip((cam - 0.10) / 0.90, 0.0, 1.0)[..., None] * 0.62
+        overlay = np.clip((base * (1.0 - alpha)) + (heat * alpha), 0.0, 1.0)
         heatmap_image = Image.fromarray((overlay * 255).astype(np.uint8))
         filename = f"{uuid.uuid4().hex}.png"
         heatmap_image.save(self.heatmap_dir / filename)
@@ -225,9 +289,9 @@ class PneumoniaPredictor:
 
     def _colorize(self, heatmap: np.ndarray) -> np.ndarray:
         x = np.clip(heatmap, 0.0, 1.0)
-        red = np.clip(1.5 - np.abs(4.0 * x - 3.0), 0.0, 1.0)
-        green = np.clip(1.5 - np.abs(4.0 * x - 2.0), 0.0, 1.0)
-        blue = np.clip(1.5 - np.abs(4.0 * x - 1.0), 0.0, 1.0)
+        red = np.clip(2.2 * x, 0.0, 1.0)
+        green = np.clip(1.8 * x - 0.25, 0.0, 1.0)
+        blue = np.clip(0.45 - x, 0.0, 0.45) / 0.45
         return np.stack([red, green, blue], axis=-1)
 
     def _confidence(self, probability: float) -> str:

@@ -96,7 +96,8 @@ Response:
     "Most influential region: lower right lung.",
     "Pattern appears focal, centered on the lower right lung."
   ],
-  "model_mode": "demo_heuristic"
+  "model_mode": "demo_heuristic",
+  "model_name": "model1_resnet18_pneumonia"
 }
 ```
 
@@ -108,13 +109,30 @@ heatmap region, opacity pattern, confidence, and probability for each uploaded X
 
 The backend uses a ResNet18 architecture and implements Grad-CAM from the final convolutional block.
 
-For a production model, place a trained two-class ResNet18 checkpoint under `backend/models/` and set:
+### Trained model 1 (ResNet18 pneumonia)
+
+Expected files in `backend/models/`:
+
+- `model1_resnet18_pneumonia.pth`
+- `model1_config.json`
+- `model1_summary.txt`
+
+Quick setup from your Downloads folder:
 
 ```bash
-export PNEUMONIA_MODEL_PATH=./models/pneumonia_resnet18.pt
+bash backend/scripts/setup_model.sh "/Users/nikolausschweigert/Downloads"
 ```
 
-If no checkpoint is provided, the app runs in deterministic MVP/demo mode: ResNet18 still powers the Grad-CAM path, while the probability is derived from a simple opacity-region heuristic so the workflow can be exercised end-to-end.
+When `model1_resnet18_pneumonia.pth` is present, the backend auto-loads it and switches from demo heuristics to trained inference + Grad-CAM.
+You can override paths with:
+
+```bash
+export PNEUMONIA_MODEL_PATH=./models/model1_resnet18_pneumonia.pth
+export PNEUMONIA_MODEL_CONFIG=./models/model1_config.json
+export PNEUMONIA_MODEL_SUMMARY=./models/model1_summary.txt
+```
+
+If no checkpoint is present, the app runs in deterministic MVP/demo mode while still generating explainable heatmaps.
 
 ## Run locally
 

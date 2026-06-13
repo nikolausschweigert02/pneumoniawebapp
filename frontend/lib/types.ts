@@ -13,6 +13,7 @@ export type PredictionResponse = {
   opacity_pattern: OpacityPattern;
   key_findings: string[];
   model_mode: "trained_checkpoint" | "demo_heuristic";
+  model_name: string;
 };
 
 export type StoredAnalysis = PredictionResponse & {

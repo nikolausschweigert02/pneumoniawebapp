@@ -109,6 +109,7 @@ export default function RecommendationsPage() {
           ))}
           <li className="rounded-2xl bg-slate-50 p-4 text-sm leading-6 text-slate-700">
             Analysis mode: {analysis.model_mode === "trained_checkpoint" ? "trained checkpoint" : "MVP demo heuristic"}
+            {analysis.model_name ? ` (${analysis.model_name})` : ""}
           </li>
         </ul>
       </section>

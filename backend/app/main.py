@@ -40,8 +40,13 @@ predictor = PneumoniaPredictor(heatmap_dir=HEATMAP_DIR)
 
 
 @app.get("/health")
-def health() -> dict[str, str]:
-    return {"status": "ok"}
+def health() -> dict[str, str | bool]:
+    return {
+        "status": "ok",
+        "model_loaded": predictor.using_checkpoint,
+        "model_mode": "trained_checkpoint" if predictor.using_checkpoint else "demo_heuristic",
+        "model_name": predictor.config.model_name if predictor.using_checkpoint else "demo_resnet18"
+    }
 
 
 @app.post("/predict", response_model=PredictionResponse)

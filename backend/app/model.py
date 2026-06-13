@@ -1,7 +1,6 @@
 from __future__ import annotations
 
 import io
-import os
 import threading
 import uuid
 from pathlib import Path
@@ -14,6 +13,13 @@ import torch.nn.functional as F
 from PIL import Image, ImageFilter, ImageOps
 from torchvision import transforms
 from torchvision.models import ResNet18_Weights, resnet18
+
+from .model_config import (
+    ModelConfig,
+    load_model_config,
+    load_model_summary,
+    resolve_checkpoint_path,
+)
 
 
 class PneumoniaPredictor:
@@ -29,17 +35,20 @@ class PneumoniaPredictor:
         self.heatmap_dir = heatmap_dir
         self.heatmap_dir.mkdir(parents=True, exist_ok=True)
         self.device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
-        self.model = self._build_model().to(self.device).eval()
-        self.using_checkpoint = self._load_checkpoint()
+        self.config = load_model_config()
+        self.model_summary = load_model_summary()
+        self.checkpoint_path = resolve_checkpoint_path()
+        self.model = self._build_model(self.config).to(self.device).eval()
+        self.using_checkpoint = self._load_checkpoint(self.checkpoint_path, self.config)
         self.target_layer = self.model.layer4[-1]
         self.activations: torch.Tensor | None = None
         self.gradients: torch.Tensor | None = None
         self.lock = threading.Lock()
         self.preprocess = transforms.Compose(
             [
-                transforms.Resize((224, 224)),
+                transforms.Resize((self.config.image_size, self.config.image_size)),
                 transforms.ToTensor(),
-                transforms.Normalize(mean=[0.485, 0.456, 0.406], std=[0.229, 0.224, 0.225])
+                transforms.Normalize(mean=list(self.config.mean), std=list(self.config.std))
             ]
         )
         self.target_layer.register_forward_hook(self._capture_activations)
@@ -53,7 +62,9 @@ class PneumoniaPredictor:
             logits = self._forward_with_gradients(tensor)
 
             if self.using_checkpoint:
-                probability = float(torch.softmax(logits.detach(), dim=1)[0, 1].item())
+                probability = float(
+                    torch.softmax(logits.detach(), dim=1)[0, self.config.pneumonia_class_index].item()
+                )
             else:
                 probability = self._opacity_probability(image)
 
@@ -89,45 +100,81 @@ class PneumoniaPredictor:
                 region_score=region_score,
                 opacity_pattern=opacity_pattern
             ),
-            "model_mode": "trained_checkpoint" if self.using_checkpoint else "demo_heuristic"
+            "model_mode": "trained_checkpoint" if self.using_checkpoint else "demo_heuristic",
+            "model_name": self.config.model_name if self.using_checkpoint else "demo_resnet18"
         }
 
-    def _build_model(self) -> nn.Module:
+    def _build_model(self, config: ModelConfig) -> nn.Module:
         try:
             model = resnet18(weights=ResNet18_Weights.DEFAULT)
         except Exception:
             model = resnet18(weights=None)
 
-        model.fc = nn.Linear(model.fc.in_features, 2)
-        torch.manual_seed(42)
-        nn.init.xavier_uniform_(model.fc.weight)
-        nn.init.zeros_(model.fc.bias)
+        model.fc = nn.Linear(model.fc.in_features, config.num_classes)
+        if not self.checkpoint_path:
+            torch.manual_seed(42)
+            nn.init.xavier_uniform_(model.fc.weight)
+            nn.init.zeros_(model.fc.bias)
         return model
 
-    def _load_checkpoint(self) -> bool:
-        checkpoint_path = os.getenv("PNEUMONIA_MODEL_PATH")
-        if not checkpoint_path:
+    def _load_checkpoint(self, checkpoint_path: Path | None, config: ModelConfig) -> bool:
+        if checkpoint_path is None or not checkpoint_path.exists():
             return False
 
-        path = Path(checkpoint_path)
-        if not path.exists():
+        checkpoint = torch.load(checkpoint_path, map_location=self.device, weights_only=False)
+        state_dict = self._extract_state_dict(checkpoint, config.checkpoint_key)
+        normalized_state_dict = self._normalize_state_dict(state_dict)
+
+        if not normalized_state_dict:
             return False
-
-        checkpoint = torch.load(path, map_location=self.device)
-        if isinstance(checkpoint, dict):
-            state_dict = checkpoint.get("model_state_dict") or checkpoint.get("state_dict") or checkpoint
-        else:
-            state_dict = checkpoint
-
-        current_state = self.model.state_dict()
-        normalized_state_dict = {}
-        for key, value in state_dict.items():
-            normalized_key = key.replace("module.", "", 1)
-            if normalized_key in current_state and current_state[normalized_key].shape == value.shape:
-                normalized_state_dict[normalized_key] = value
 
         self.model.load_state_dict(normalized_state_dict, strict=False)
         return True
+
+    def _extract_state_dict(self, checkpoint: Any, checkpoint_key: str | None) -> dict[str, torch.Tensor]:
+        if isinstance(checkpoint, dict):
+            if checkpoint_key and checkpoint_key in checkpoint and isinstance(checkpoint[checkpoint_key], dict):
+                return checkpoint[checkpoint_key]
+
+            for key in ("model_state_dict", "state_dict", "model", "net"):
+                candidate = checkpoint.get(key)
+                if isinstance(candidate, dict):
+                    return candidate
+
+            tensor_items = {
+                key: value for key, value in checkpoint.items() if isinstance(value, torch.Tensor)
+            }
+            if tensor_items:
+                return tensor_items
+
+        if isinstance(checkpoint, dict):
+            return checkpoint
+
+        raise ValueError("Unsupported checkpoint format.")
+
+    def _normalize_state_dict(self, state_dict: dict[str, torch.Tensor]) -> dict[str, torch.Tensor]:
+        current_state = self.model.state_dict()
+        normalized_state_dict: dict[str, torch.Tensor] = {}
+
+        for key, value in state_dict.items():
+            candidates = [
+                key,
+                key.replace("module.", "", 1),
+                key.replace("model.", "", 1),
+                key.replace("backbone.", "", 1),
+            ]
+
+            if key.startswith("fc."):
+                candidates.append(key)
+            elif key.startswith("classifier."):
+                candidates.append(key.replace("classifier.", "fc.", 1))
+
+            for candidate in candidates:
+                if candidate in current_state and current_state[candidate].shape == value.shape:
+                    normalized_state_dict[candidate] = value
+                    break
+
+        return normalized_state_dict
 
     def _load_image(self, image_bytes: bytes) -> Image.Image:
         image = Image.open(io.BytesIO(image_bytes))
@@ -336,6 +383,11 @@ class PneumoniaPredictor:
             f"Most influential region: {region_name}.",
             f"Regional opacity signal is {score_description} the image baseline."
         ]
+
+        if self.using_checkpoint:
+            findings.insert(0, f"Prediction generated by trained model `{self.config.model_name}`.")
+            if self.model_summary:
+                findings.append(self.model_summary.splitlines()[0])
 
         if prediction == "PNEUMONIA":
             if opacity_pattern == "focal":

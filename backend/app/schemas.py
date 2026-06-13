@@ -13,3 +13,4 @@ class PredictionResponse(BaseModel):
     opacity_pattern: str = Field(..., examples=["focal"])
     key_findings: list[str]
     model_mode: str = Field(..., examples=["demo_heuristic"])
+    model_name: str = Field(..., examples=["model1_resnet18_pneumonia"])

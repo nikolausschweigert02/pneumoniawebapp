@@ -134,6 +134,43 @@ export PNEUMONIA_MODEL_SUMMARY=./models/model1_summary.txt
 
 If no checkpoint is present, the app runs in deterministic MVP/demo mode while still generating explainable heatmaps.
 
+## Gradio demo
+
+A standalone Gradio app is available for quick chest X-ray screening demos with threshold-based
+classification and Grad-CAM overlays.
+
+Requirements:
+
+- `backend/models/model1_resnet18_pneumonia.pth`
+- `backend/models/model1_config.json`
+
+Run:
+
+```bash
+cd gradio
+python3 -m venv .venv
+source .venv/bin/activate
+pip install -r requirements.txt
+python app.py
+```
+
+The demo opens at `http://localhost:7860` by default.
+
+Model rules implemented in the Gradio app:
+
+- Binary ResNet18 with a custom classifier head
+- Threshold screening at `0.20` on the PNEUMONIA model score (not argmax)
+- Grad-CAM on `model.layer4[-1]` for every upload
+- UI labels use **Model score**, **Screening threshold**, and **PNEUMONIA-like pattern flagged**
+
+Optional environment variables:
+
+```bash
+export PNEUMONIA_MODEL_PATH=./backend/models/model1_resnet18_pneumonia.pth
+export PNEUMONIA_MODEL_CONFIG=./backend/models/model1_config.json
+export GRADIO_SERVER_PORT=7860
+```
+
 ## Run locally
 
 Open two terminals from the repository root.

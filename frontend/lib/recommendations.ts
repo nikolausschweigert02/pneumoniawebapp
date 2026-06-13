@@ -14,8 +14,8 @@ export type DoctorActionPlan = {
   sections: RecommendationSection[];
 };
 
-function formatProbability(probability: number) {
-  return `${Math.round(probability * 100)}%`;
+function formatModelScore(score: number) {
+  return `${Math.round(score * 100)}%`;
 }
 
 function fallbackRegion(analysis: StoredAnalysis) {
@@ -124,14 +124,15 @@ function patternSpecificActions(pattern: StoredAnalysis["opacity_pattern"], regi
 }
 
 export function buildDoctorActionPlan(analysis: StoredAnalysis): DoctorActionPlan {
-  const probability = formatProbability(analysis.probability);
+  const modelScore = formatModelScore(analysis.model_score_pneumonia ?? analysis.probability);
+  const screeningThreshold = formatModelScore(analysis.screening_threshold ?? 0.2);
   const region = fallbackRegion(analysis);
   const pattern = analysis.opacity_pattern ?? (analysis.prediction === "PNEUMONIA" ? "subtle" : "low_suspicion");
   const regionScore = analysis.region_opacity_score ?? 0;
   const imageSpecificFindings = analysis.key_findings?.length
     ? analysis.key_findings
     : [
-        `AI pneumonia probability is ${probability} with ${analysis.confidence} confidence.`,
+        `AI PNEUMONIA model score is ${modelScore} with ${analysis.confidence} confidence.`,
         `Most influential area: ${region}.`,
         analysis.explanation
       ];
@@ -144,7 +145,7 @@ export function buildDoctorActionPlan(analysis: StoredAnalysis): DoctorActionPla
     return {
       triageLevel: highConfidence ? "Prioritized radiology review" : "Clinical correlation required",
       triageTone: highConfidence ? "red" : "amber",
-      summary: `This X-ray is flagged for pneumonia with ${probability} probability and ${analysis.confidence} confidence. The most influential area is the ${regionLabel(region)}, with a ${pattern.replaceAll("_", " ")} opacity pattern and regional signal ${regionScore.toFixed(3)} versus image baseline.`,
+      summary: `This X-ray is flagged for pneumonia-like screening with ${modelScore} PNEUMONIA model score and ${analysis.confidence} confidence. The strongest Grad-CAM influence area is the ${regionLabel(region)}.`,
       imageSpecificFindings,
       sections: [
         {
@@ -185,7 +186,7 @@ export function buildDoctorActionPlan(analysis: StoredAnalysis): DoctorActionPla
               ? "If symptoms and vitals support infection, start empiric therapy per local pneumonia guideline after accounting for allergies, renal function, and resistance risk."
               : "If clinical findings are weak or discordant, avoid treatment based on AI alone; confirm with radiology or repeat imaging as appropriate.",
             "Use a validated severity score or institutional pathway to decide outpatient treatment, observation, or admission.",
-            `Document the AI-indicated region (${regionLabel(region)}), probability (${probability}), confidence (${analysis.confidence}), and clinician interpretation.`
+            `Document the AI-indicated region (${regionLabel(region)}), PNEUMONIA model score (${modelScore}), confidence (${analysis.confidence}), and clinician interpretation.`
           ]
         }
       ]
@@ -195,7 +196,7 @@ export function buildDoctorActionPlan(analysis: StoredAnalysis): DoctorActionPla
   return {
     triageLevel: analysis.confidence === "high" ? "Low AI suspicion" : "Indeterminate AI support",
     triageTone: analysis.confidence === "high" ? "emerald" : "amber",
-    summary: `This X-ray did not cross the pneumonia threshold (${probability} probability, ${analysis.confidence} confidence). The area to double-check is the ${regionLabel(region)}, because it was still the most influential heatmap region.`,
+    summary: `This X-ray did not cross the screening threshold of ${screeningThreshold} (PNEUMONIA model score ${modelScore}, ${analysis.confidence} confidence). The area to double-check is the ${regionLabel(region)}, because it was still the most influential Grad-CAM region.`,
     imageSpecificFindings,
     sections: [
       {
@@ -231,7 +232,7 @@ export function buildDoctorActionPlan(analysis: StoredAnalysis): DoctorActionPla
             ? "Because confidence is low, arrange closer reassessment or radiology review if clinical suspicion is more than minimal."
             : "If outpatient management is chosen, give return precautions for worsening dyspnea, persistent fever, chest pain, confusion, cyanosis, or low oxygen saturation.",
           "Plan follow-up if symptoms persist, worsen, or the patient is high risk.",
-          `Document that pneumonia probability was ${probability}, with the ${regionLabel(region)} reviewed as the most influential region.`
+          `Document that the PNEUMONIA model score was ${modelScore}, with the ${regionLabel(region)} reviewed as the most influential Grad-CAM region.`
         ]
       }
     ]

@@ -113,50 +113,68 @@ export default function ResultsPage() {
         </section>
 
         <div className="grid gap-6 md:grid-cols-2">
-          <ResultCard title="Prediction" accent={isPneumonia ? "border-amber-200" : "border-emerald-200"}>
-            <p className={`text-4xl font-bold ${isPneumonia ? "text-amber-700" : "text-emerald-700"}`}>
-              {analysis.prediction}
+          <ResultCard title="Screening result" accent={isPneumonia ? "border-amber-200" : "border-emerald-200"}>
+            <p className={`text-3xl font-bold leading-tight ${isPneumonia ? "text-amber-700" : "text-emerald-700"}`}>
+              {analysis.screening_label ?? analysis.prediction}
             </p>
-            <p className="mt-2 text-sm text-slate-500">Binary model output for pneumonia screening.</p>
+            <p className="mt-2 text-sm text-slate-500">
+              Threshold-based screening output, not a clinical diagnosis.
+            </p>
           </ResultCard>
 
-          <ResultCard title="Probability">
-            <p className="text-4xl font-bold text-slate-950">{formatPercent(analysis.probability)}</p>
+          <ResultCard title="Model score (PNEUMONIA)">
+            <p className="text-4xl font-bold text-slate-950">
+              {formatPercent(analysis.model_score_pneumonia ?? analysis.probability)}
+            </p>
             <div className="mt-4 h-3 rounded-full bg-slate-100">
               <div
                 className="h-3 rounded-full bg-sky-600"
-                style={{ width: formatPercent(analysis.probability) }}
+                style={{ width: formatPercent(analysis.model_score_pneumonia ?? analysis.probability) }}
               />
             </div>
+            <p className="mt-3 text-sm text-slate-500">
+              Model score (NORMAL): {formatPercent(analysis.model_score_normal ?? 1 - analysis.probability)}
+            </p>
+          </ResultCard>
+
+          <ResultCard title="Screening threshold">
+            <p className="text-4xl font-bold text-slate-950">
+              {formatPercent(analysis.screening_threshold ?? 0.2)}
+            </p>
+            <p className="mt-2 text-sm text-slate-500">
+              PNEUMONIA-like screening is triggered when the PNEUMONIA model score is at or above this value.
+            </p>
           </ResultCard>
 
           <ResultCard title="Confidence">
             <p className="text-4xl font-bold capitalize text-slate-950">{analysis.confidence}</p>
-            <p className="mt-2 text-sm text-slate-500">Confidence is derived from probability distance from 50%.</p>
+            <p className="mt-2 text-sm text-slate-500">
+              {analysis.confidence_disclaimer ??
+                "This score is not calibrated and must not be interpreted as the clinical probability of pneumonia."}
+            </p>
           </ResultCard>
 
-          <ResultCard title="Grad-CAM heatmap">
+          <ResultCard title="Grad-CAM influence map">
             <div className="overflow-hidden rounded-2xl bg-slate-950">
               <Image
                 src={heatmapUrl}
-                alt="Grad-CAM heatmap visualization"
+                alt="Grad-CAM influence map"
                 width={720}
                 height={720}
                 unoptimized
                 className="h-auto w-full object-contain"
               />
             </div>
+            <p className="mt-3 text-sm leading-6 text-slate-500">
+              {analysis.gradcam_note ?? analysis.explanation}
+            </p>
           </ResultCard>
 
-          <ResultCard title="AI explanation" accent="md:col-span-2 border-indigo-200">
-            <p className="text-lg leading-8 text-slate-700">{analysis.explanation}</p>
-          </ResultCard>
-
-          <ResultCard title="Clinical recommendation" accent="md:col-span-2 border-sky-200">
+          <ResultCard title="Clinician note" accent="md:col-span-2 border-sky-200">
             <p className="text-lg leading-8 text-slate-700">{analysis.recommendation}</p>
             <p className="mt-4 rounded-2xl bg-slate-50 p-4 text-sm leading-6 text-slate-500">
-              This MVP is decision-support software for demonstration and must not replace radiologist review,
-              clinical exam findings, prior imaging, or laboratory context.
+              Educational research demo only. Not a medical device. Grad-CAM highlights model influence regions
+              and does not prove clinical correctness.
             </p>
             <Link
               href="/recommendations"

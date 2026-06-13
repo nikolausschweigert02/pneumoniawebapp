@@ -107,7 +107,17 @@ heatmap region, opacity pattern, confidence, and probability for each uploaded X
 
 ## Model behavior
 
-The backend uses a ResNet18 architecture and implements Grad-CAM from the final convolutional block.
+The backend uses a ResNet18 architecture and implements standard Grad-CAM from `model.layer4[-1]`.
+
+When the trained checkpoint is loaded:
+
+- The classifier head matches training: `Dropout → Linear(512,256) → ReLU → Dropout → Linear(256,2)`
+- Images are preprocessed as grayscale with 3 channels, resized to 224, and normalized with ImageNet statistics
+- Screening uses a `0.20` threshold on the PNEUMONIA model score, not argmax
+- Grad-CAM is rendered as a raw influence map without lung masking or heuristic post-processing
+- Grad-CAM explains class `1` for PNEUMONIA-like screening and class `0` for NORMAL-like screening
+
+Grad-CAM shows model influence regions, not proven disease location. The UI and API copy state this explicitly.
 
 ### Trained model 1 (ResNet18 pneumonia)
 
@@ -160,8 +170,11 @@ Model rules implemented in the Gradio app:
 
 - Binary ResNet18 with a custom classifier head
 - Threshold screening at `0.20` on the PNEUMONIA model score (not argmax)
-- Grad-CAM on `model.layer4[-1]` for every upload
+- Raw Grad-CAM on `model.layer4[-1]` for every upload, without anatomical masking
+- Explains class 1 for PNEUMONIA-like results and class 0 for NORMAL-like results
 - UI labels use **Model score**, **Screening threshold**, and **PNEUMONIA-like pattern flagged**
+
+The FastAPI backend now uses the same architecture, preprocessing, threshold logic, and raw Grad-CAM path when the trained checkpoint is loaded.
 
 Optional environment variables:
 

@@ -3,9 +3,15 @@ export type OpacityPattern = "focal" | "multifocal_or_diffuse" | "subtle" | "low
 
 export type PredictionResponse = {
   prediction: "PNEUMONIA" | "NORMAL";
+  screening_label: string;
   probability: number;
+  model_score_normal: number;
+  model_score_pneumonia: number;
+  screening_threshold: number;
   confidence: ConfidenceLevel;
+  confidence_disclaimer: string;
   explanation: string;
+  gradcam_note: string;
   recommendation: string;
   heatmap_url: string;
   suspicious_region: string;

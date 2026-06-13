@@ -96,7 +96,7 @@ export default function RecommendationsPage() {
             <p className="mt-3 text-3xl font-bold">{actionPlan.triageLevel}</p>
           </div>
           <div className="rounded-2xl bg-white/70 px-5 py-4 text-sm font-semibold">
-            {analysis.prediction} · {Math.round((analysis.model_score_pneumonia ?? analysis.probability) * 100)}% · {analysis.confidence} confidence
+            {(analysis.screening_label ?? analysis.prediction)} · {Math.round((analysis.model_score_pneumonia ?? analysis.probability) * 100)}% pneumonia score · {analysis.confidence} confidence
           </div>
         </div>
         <p className="mt-5 max-w-4xl text-base leading-7">{actionPlan.summary}</p>

@@ -121,11 +121,11 @@ export default function Home() {
             Upload a chest X-ray and get an explainable pneumonia assessment.
           </h1>
           <p className="mt-6 max-w-2xl text-lg leading-8 text-slate-600">
-            The app returns a pneumonia prediction, probability, confidence level, Grad-CAM heatmap,
-            plain-language explanation, and clinical recommendation for physician review.
+            Upload a chest X-ray to get an AI-assisted pneumonia screening result, model scores,
+            a Grad-CAM explanation, and a clinical recommendation for physician review.
           </p>
           <div className="mt-8 grid gap-4 text-sm text-slate-600 sm:grid-cols-3">
-            {["ResNet18 inference", "Grad-CAM heatmap", "Clinical summary"].map((item) => (
+            {["ResNet18 screening", "Grad-CAM explanation", "Clinical summary"].map((item) => (
               <div key={item} className="rounded-2xl border border-white/70 bg-white/80 p-4 shadow-sm">
                 <span className="font-semibold text-slate-900">{item}</span>
               </div>

@@ -79,7 +79,9 @@ export default function ResultsPage() {
   }
 
   const isPneumonia = analysis.prediction === "PNEUMONIA";
-  const probability = analysis.model_score_pneumonia ?? analysis.probability;
+  const pneumoniaScore = analysis.model_score_pneumonia ?? analysis.probability;
+  const normalScore = analysis.model_score_normal ?? 1 - pneumoniaScore;
+  const threshold = analysis.screening_threshold ?? 0.2;
 
   return (
     <main className="mx-auto min-h-screen w-full max-w-7xl px-6 py-10">
@@ -121,24 +123,43 @@ export default function ResultsPage() {
         </section>
 
         <div className="grid gap-6 md:grid-cols-2">
-          <ResultCard title="Prediction" accent={isPneumonia ? "border-amber-200" : "border-emerald-200"}>
-            <p className={`text-4xl font-bold ${isPneumonia ? "text-amber-700" : "text-emerald-700"}`}>
-              {analysis.prediction}
+          <ResultCard title="AI screening result" accent={isPneumonia ? "border-amber-200" : "border-emerald-200"}>
+            <p className={`text-3xl font-bold leading-tight ${isPneumonia ? "text-amber-700" : "text-emerald-700"}`}>
+              {analysis.screening_label ?? analysis.prediction}
             </p>
-            <p className="mt-2 text-sm text-slate-500">AI screening result for pneumonia.</p>
+            <p className="mt-2 text-sm text-slate-500">
+              AI-assisted screening only. This is not a final medical diagnosis.
+            </p>
           </ResultCard>
 
-          <ResultCard title="Probability">
-            <p className="text-4xl font-bold text-slate-950">{formatPercent(probability)}</p>
-            <div className="mt-4 h-3 rounded-full bg-slate-100">
-              <div className="h-3 rounded-full bg-sky-600" style={{ width: formatPercent(probability) }} />
+          <ResultCard title="AI model scores">
+            <div className="space-y-3">
+              <div>
+                <p className="text-sm text-slate-500">Pneumonia score</p>
+                <p className="text-3xl font-bold text-slate-950">{formatPercent(pneumoniaScore)}</p>
+              </div>
+              <div>
+                <p className="text-sm text-slate-500">Normal score</p>
+                <p className="text-2xl font-semibold text-slate-800">{formatPercent(normalScore)}</p>
+              </div>
             </div>
-            <p className="mt-2 text-sm text-slate-500">How likely the model thinks pneumonia is present.</p>
+            <p className="mt-3 text-sm text-slate-500">
+              These are model outputs from the neural network, not calibrated clinical probabilities.
+            </p>
+          </ResultCard>
+
+          <ResultCard title="Decision rule">
+            <p className="text-3xl font-bold text-slate-950">{formatPercent(threshold)}</p>
+            <p className="mt-2 text-sm leading-6 text-slate-600">
+              The AI flags pneumonia-like patterns when the pneumonia score is at or above 20%.
+            </p>
           </ResultCard>
 
           <ResultCard title="Confidence">
             <p className="text-4xl font-bold capitalize text-slate-950">{analysis.confidence}</p>
-            <p className="mt-2 text-sm text-slate-500">How certain the model is about this result.</p>
+            <p className="mt-2 text-sm text-slate-500">
+              Based on how far the pneumonia score is from the decision threshold.
+            </p>
           </ResultCard>
 
           <ResultCard title="Grad-CAM heatmap">
@@ -153,14 +174,15 @@ export default function ResultsPage() {
               />
             </div>
             <p className="mt-3 text-sm leading-6 text-slate-500">
-              Highlights where the AI focused on the image. This is not a diagnosis.
+              {analysis.gradcam_note ??
+                "The heatmap shows which image regions influenced the AI. It does not prove pneumonia is present."}
             </p>
           </ResultCard>
 
           <ResultCard title="AI explanation" accent="md:col-span-2 border-indigo-200">
             <p className="text-lg leading-8 text-slate-700">
               {analysis.suspicious_region
-                ? `The model was most influenced by the ${analysis.suspicious_region}.`
+                ? `The strongest model influence was in the ${analysis.suspicious_region}.`
                 : analysis.explanation}
             </p>
           </ResultCard>
@@ -168,7 +190,8 @@ export default function ResultsPage() {
           <ResultCard title="Clinical recommendation" accent="md:col-span-2 border-sky-200">
             <p className="text-lg leading-8 text-slate-700">{analysis.recommendation}</p>
             <p className="mt-4 rounded-2xl bg-slate-50 p-4 text-sm leading-6 text-slate-500">
-              This is a demo tool only. A doctor must always review the X-ray and clinical findings.
+              Educational research demo only. Not a medical device. A doctor must always review the X-ray,
+              symptoms, and clinical findings.
             </p>
             <Link
               href="/recommendations"
@@ -176,6 +199,15 @@ export default function ResultsPage() {
             >
               Continue to physician action plan
             </Link>
+          </ResultCard>
+
+          <ResultCard title="How this AI works" accent="md:col-span-2 border-violet-100 bg-violet-50/40">
+            <ul className="space-y-2 text-sm leading-7 text-slate-700">
+              <li>• Uses a trained ResNet18 model for binary chest X-ray screening.</li>
+              <li>• Applies a 20% pneumonia-score threshold instead of a simple winner-takes-all decision.</li>
+              <li>• Grad-CAM highlights image regions that influenced the model output.</li>
+              <li>• The heatmap is an explanation tool, not proof of disease location.</li>
+            </ul>
           </ResultCard>
         </div>
       </div>

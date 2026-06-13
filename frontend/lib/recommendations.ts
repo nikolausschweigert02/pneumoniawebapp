@@ -130,7 +130,7 @@ export function buildDoctorActionPlan(analysis: StoredAnalysis): DoctorActionPla
   const imageSpecificFindings = analysis.key_findings?.length
     ? analysis.key_findings
     : [
-        `AI pneumonia probability is ${probability} with ${analysis.confidence} confidence.`,
+        `AI pneumonia score is ${probability} with ${analysis.confidence} confidence.`,
         `Most influential area: ${region}.`,
         analysis.explanation
       ];
@@ -143,7 +143,7 @@ export function buildDoctorActionPlan(analysis: StoredAnalysis): DoctorActionPla
     return {
       triageLevel: highConfidence ? "Prioritized radiology review" : "Clinical correlation required",
       triageTone: highConfidence ? "red" : "amber",
-      summary: `This X-ray is flagged for pneumonia with ${probability} probability and ${analysis.confidence} confidence. The most influential area is the ${regionLabel(region)}.`,
+      summary: `This X-ray is flagged for pneumonia with ${probability} pneumonia score and ${analysis.confidence} confidence. The most influential area is the ${regionLabel(region)}.`,
       imageSpecificFindings,
       sections: [
         {
@@ -194,7 +194,7 @@ export function buildDoctorActionPlan(analysis: StoredAnalysis): DoctorActionPla
   return {
     triageLevel: analysis.confidence === "high" ? "Low AI suspicion" : "Indeterminate AI support",
     triageTone: analysis.confidence === "high" ? "emerald" : "amber",
-    summary: `This X-ray did not cross the pneumonia threshold (${probability} probability, ${analysis.confidence} confidence). The area to double-check is the ${regionLabel(region)}, because it was still the most influential heatmap region.`,
+    summary: `This X-ray stayed below the 20% pneumonia threshold (${probability} pneumonia score, ${analysis.confidence} confidence). The area to double-check is the ${regionLabel(region)}, because it was still the most influential heatmap region.`,
     imageSpecificFindings,
     sections: [
       {

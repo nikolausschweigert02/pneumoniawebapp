@@ -1,0 +1,11 @@
+{
+  "model_id": "model1_resnet18_pneumonia",
+  "architecture": "resnet18",
+  "num_classes": 2,
+  "class_names": ["NORMAL", "PNEUMONIA"],
+  "pneumonia_class_index": 1,
+  "image_size": 224,
+  "mean": [0.485, 0.456, 0.406],
+  "std": [0.229, 0.224, 0.225],
+  "checkpoint_key": "model_state_dict"
+}

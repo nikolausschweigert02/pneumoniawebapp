@@ -54,9 +54,12 @@ A doctor uploads a chest X-ray image and receives:
 │   │   ├── globals.css
 │   │   ├── layout.tsx
 │   │   ├── page.tsx
+│   │   ├── recommendations
+│   │   │   └── page.tsx
 │   │   └── results
 │   │       └── page.tsx
 │   ├── lib
+│   │   ├── recommendations.ts
 │   │   └── types.ts
 │   ├── .env.example
 │   ├── eslint.config.mjs
@@ -161,6 +164,13 @@ FastAPI service.
    - Heatmap card
    - AI explanation card
    - Clinical recommendation card
+5. Click **View doctor recommendations** to open the physician action plan:
+   - Triage guidance
+   - Immediate clinical checks
+   - Imaging and diagnostic next steps
+   - Treatment considerations
+   - Disposition and follow-up
+   - Documentation note
 
 ## Development notes
 

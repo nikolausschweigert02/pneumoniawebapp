@@ -81,12 +81,20 @@ export default function ResultsPage() {
           <h1 className="mt-2 text-4xl font-bold text-slate-950">Explainable Pneumonia AI</h1>
           <p className="mt-2 text-slate-600">{analysis.fileName}</p>
         </div>
-        <Link
-          href="/"
-          className="rounded-2xl border border-slate-200 bg-white px-5 py-3 text-center font-semibold text-slate-700 shadow-sm hover:bg-slate-50"
-        >
-          Analyze another image
-        </Link>
+        <div className="flex flex-col gap-3 sm:flex-row">
+          <Link
+            href="/recommendations"
+            className="rounded-2xl bg-sky-600 px-5 py-3 text-center font-semibold text-white shadow-sm hover:bg-sky-700"
+          >
+            View doctor recommendations
+          </Link>
+          <Link
+            href="/"
+            className="rounded-2xl border border-slate-200 bg-white px-5 py-3 text-center font-semibold text-slate-700 shadow-sm hover:bg-slate-50"
+          >
+            Analyze another image
+          </Link>
+        </div>
       </div>
 
       <div className="grid gap-6 lg:grid-cols-[0.95fr_1.05fr]">
@@ -150,6 +158,12 @@ export default function ResultsPage() {
               This MVP is decision-support software for demonstration and must not replace radiologist review,
               clinical exam findings, prior imaging, or laboratory context.
             </p>
+            <Link
+              href="/recommendations"
+              className="mt-5 inline-flex rounded-2xl bg-sky-600 px-5 py-3 font-semibold text-white hover:bg-sky-700"
+            >
+              Continue to physician action plan
+            </Link>
           </ResultCard>
         </div>
       </div>

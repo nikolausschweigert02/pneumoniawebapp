@@ -115,7 +115,7 @@ export default function Home() {
       <section className="grid flex-1 items-center gap-10 lg:grid-cols-[1.05fr_0.95fr]">
         <div>
           <p className="mb-4 inline-flex rounded-full bg-sky-100 px-4 py-2 text-sm font-semibold text-sky-800">
-            Explainable Pneumonia AI MVP
+            Explainable Pneumonia AI
           </p>
           <h1 className="text-4xl font-bold tracking-tight text-slate-950 sm:text-6xl">
             Upload a chest X-ray and get an explainable pneumonia assessment.
@@ -225,7 +225,7 @@ export default function Home() {
             {isAnalyzing ? "Analyzing..." : "Analyze X-ray"}
           </button>
           <p className="mt-4 text-xs leading-5 text-slate-500">
-            MVP only. Predictions must be reviewed by qualified clinicians and are not a standalone diagnosis.
+            Predictions must be reviewed by qualified clinicians and are not a standalone diagnosis.
           </p>
         </form>
       </section>

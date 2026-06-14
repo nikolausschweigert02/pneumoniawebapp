@@ -113,7 +113,7 @@ export default function RecommendationsPage() {
             </li>
           ))}
           <li className="rounded-2xl bg-slate-50 p-4 text-sm leading-6 text-slate-700">
-            Analysis mode: {analysis.model_mode === "trained_checkpoint" ? "trained checkpoint" : "MVP demo heuristic"}
+            Analysis mode: {analysis.model_mode === "trained_checkpoint" ? "trained checkpoint" : "demo heuristic"}
             {analysis.model_name ? ` (${analysis.model_name})` : ""}
           </li>
         </ul>
@@ -147,7 +147,7 @@ export default function RecommendationsPage() {
         <h2 className="text-xl font-bold text-slate-950">Documentation note</h2>
         <p className="mt-3 leading-7 text-slate-600">
           Record the AI prediction, probability, heatmap region, clinician interpretation, and the final medical
-          decision. This MVP is an advisory tool and does not replace radiologist review, local protocols, or
+          decision. This tool is an advisory aid and does not replace radiologist review, local protocols, or
           physician judgment.
         </p>
       </section>

@@ -3,7 +3,7 @@ import "./globals.css";
 
 export const metadata: Metadata = {
   title: "Explainable Pneumonia AI",
-  description: "MVP for pneumonia detection with confidence, Grad-CAM heatmaps, and clinical guidance."
+  description: "Explainable pneumonia screening with confidence, Grad-CAM heatmaps, and clinical guidance."
 };
 
 export default function RootLayout({

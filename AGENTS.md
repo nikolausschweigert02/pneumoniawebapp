@@ -2,7 +2,7 @@
 
 ## Cursor Cloud specific instructions
 
-This repo is the **Explainable Pneumonia AI** MVP: a FastAPI + PyTorch backend (`backend/`) and a Next.js frontend (`frontend/`). Standard install/run commands live in `README.md`; only the non-obvious caveats are captured here.
+This repo is the **Explainable Pneumonia AI** app: a FastAPI + PyTorch backend (`backend/`) and a Next.js frontend (`frontend/`). Standard install/run commands live in `README.md`; only the non-obvious caveats are captured here.
 
 ### Services
 | Service | Dir | Run (dev) | Port | Required |

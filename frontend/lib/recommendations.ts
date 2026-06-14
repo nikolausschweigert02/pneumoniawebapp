@@ -118,7 +118,7 @@ function patternSpecificActions(pattern: StoredAnalysis["opacity_pattern"], regi
   }
 
   return [
-    "No focal pattern crossed the MVP threshold; use the highlighted region only as an area to double-check.",
+    "No focal pattern crossed the screening threshold; use the highlighted region only as an area to double-check.",
     "If the image is low quality, rotated, or under/overexposed, consider repeat imaging before relying on the screen."
   ];
 }

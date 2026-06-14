@@ -1,6 +1,6 @@
 # Explainable Pneumonia AI
 
-Complete MVP for explainable chest X-ray pneumonia screening.
+Complete app for explainable chest X-ray pneumonia screening.
 
 A doctor uploads a chest X-ray image and receives:
 
@@ -10,7 +10,7 @@ A doctor uploads a chest X-ray image and receives:
 4. Human-readable explanation
 5. Clinical recommendation
 
-> Clinical safety note: this MVP is for demonstration and workflow prototyping only. It is not a certified medical device and must not be used as a standalone diagnosis.
+> Clinical safety note: this app is for demonstration and workflow prototyping only. It is not a certified medical device and must not be used as a standalone diagnosis.
 
 ## Tech stack
 
@@ -142,7 +142,7 @@ export PNEUMONIA_MODEL_CONFIG=./models/model1_config.json
 export PNEUMONIA_MODEL_SUMMARY=./models/model1_summary.txt
 ```
 
-If no checkpoint is present, the app runs in deterministic MVP/demo mode while still generating explainable heatmaps.
+If no checkpoint is present, the app runs in deterministic demo mode while still generating explainable heatmaps.
 
 ## Gradio demo
 

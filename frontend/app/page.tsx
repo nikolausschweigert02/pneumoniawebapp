@@ -10,6 +10,17 @@ const PREDICT_ENDPOINT = process.env.NEXT_PUBLIC_API_BASE_URL
   ? `${API_BASE_URL.replace(/\/$/, "")}/predict`
   : "/api/predict";
 
+const DEMO_SAMPLES = [
+  { label: "Try demo NORMAL example", path: "/samples/normal.jpg", fileName: "demo-normal.jpg" },
+  { label: "Try demo PNEUMONIA example", path: "/samples/pneumonia.jpg", fileName: "demo-pneumonia.jpg" }
+] as const;
+
+const ANALYSIS_STEPS = [
+  "Uploading image",
+  "Running AI model",
+  "Generating Grad-CAM heatmap"
+] as const;
+
 function fileToDataUrl(file: File): Promise<string> {
   return new Promise((resolve, reject) => {
     const reader = new FileReader();
@@ -26,6 +37,7 @@ export default function Home() {
   const [previewUrl, setPreviewUrl] = useState<string>("");
   const [isDragging, setIsDragging] = useState(false);
   const [isAnalyzing, setIsAnalyzing] = useState(false);
+  const [analysisStep, setAnalysisStep] = useState(0);
   const [error, setError] = useState<string>("");
 
   const canAnalyze = selectedFile !== null && !isAnalyzing;
@@ -69,6 +81,21 @@ export default function Home() {
     await selectFile(event.dataTransfer.files?.[0] ?? null);
   }
 
+  async function loadDemoSample(path: string, fileName: string) {
+    try {
+      setError("");
+      const response = await fetch(path);
+      if (!response.ok) {
+        throw new Error("Could not load demo image.");
+      }
+      const blob = await response.blob();
+      const file = new File([blob], fileName, { type: blob.type || "image/jpeg" });
+      await selectFile(file);
+    } catch (err) {
+      setError(err instanceof Error ? err.message : "Could not load demo image.");
+    }
+  }
+
   async function handleSubmit(event: FormEvent<HTMLFormElement>) {
     event.preventDefault();
     if (!selectedFile) {
@@ -77,12 +104,14 @@ export default function Home() {
     }
 
     setIsAnalyzing(true);
+    setAnalysisStep(0);
     setError("");
 
     try {
       const formData = new FormData();
       formData.append("file", selectedFile);
 
+      setAnalysisStep(1);
       const response = await fetch(PREDICT_ENDPOINT, {
         method: "POST",
         body: formData
@@ -93,6 +122,7 @@ export default function Home() {
         throw new Error(details || "Prediction request failed.");
       }
 
+      setAnalysisStep(2);
       const prediction = (await response.json()) as PredictionResponse;
       const originalImage = previewUrl || (await fileToDataUrl(selectedFile));
       const storedAnalysis: StoredAnalysis = {
@@ -107,6 +137,7 @@ export default function Home() {
       setError(err instanceof Error ? err.message : "Unable to analyze the image.");
     } finally {
       setIsAnalyzing(false);
+      setAnalysisStep(0);
     }
   }
 
@@ -153,18 +184,18 @@ export default function Home() {
               onChange={handleFileChange}
               className="hidden"
             />
-          <div
-            role="button"
-            tabIndex={0}
-            onClick={() => fileInputRef.current?.click()}
-            onKeyDown={(event) => {
-              if (event.key === "Enter" || event.key === " ") {
-                event.preventDefault();
-                fileInputRef.current?.click();
-              }
-            }}
-            className="block cursor-pointer rounded-2xl bg-white px-6 py-10 transition"
-          >
+            <div
+              role="button"
+              tabIndex={0}
+              onClick={() => fileInputRef.current?.click()}
+              onKeyDown={(event) => {
+                if (event.key === "Enter" || event.key === " ") {
+                  event.preventDefault();
+                  fileInputRef.current?.click();
+                }
+              }}
+              className="block cursor-pointer rounded-2xl bg-white px-6 py-10 transition"
+            >
               {previewUrl ? (
                 <div>
                   <Image
@@ -209,6 +240,48 @@ export default function Home() {
             <p className="mt-4 text-sm text-slate-600">
               Selected: <span className="font-medium text-slate-900">{selectedFile.name}</span>
             </p>
+          ) : null}
+
+          <div className="mt-4 grid gap-3 sm:grid-cols-2">
+            {DEMO_SAMPLES.map((sample) => (
+              <button
+                key={sample.path}
+                type="button"
+                disabled={isAnalyzing}
+                onClick={() => loadDemoSample(sample.path, sample.fileName)}
+                className="rounded-2xl border border-slate-200 bg-slate-50 px-4 py-3 text-left text-sm font-semibold text-slate-800 transition hover:border-sky-300 hover:bg-sky-50 disabled:cursor-not-allowed disabled:opacity-60"
+              >
+                {sample.label}
+              </button>
+            ))}
+          </div>
+
+          {isAnalyzing ? (
+            <div className="mt-4 rounded-2xl border border-sky-100 bg-sky-50 p-4">
+              <p className="text-sm font-semibold text-sky-900">Analysis in progress</p>
+              <ul className="mt-3 space-y-2">
+                {ANALYSIS_STEPS.map((step, index) => {
+                  const isDone = index < analysisStep;
+                  const isActive = index === analysisStep;
+                  return (
+                    <li key={step} className="flex items-center gap-3 text-sm text-slate-700">
+                      <span
+                        className={`flex h-6 w-6 items-center justify-center rounded-full text-xs font-bold ${
+                          isDone
+                            ? "bg-emerald-500 text-white"
+                            : isActive
+                              ? "bg-sky-600 text-white"
+                              : "bg-slate-200 text-slate-500"
+                        }`}
+                      >
+                        {isDone ? "✓" : index + 1}
+                      </span>
+                      <span className={isActive ? "font-semibold text-sky-900" : ""}>{step}</span>
+                    </li>
+                  );
+                })}
+              </ul>
+            </div>
           ) : null}
 
           {error ? (

@@ -23,7 +23,9 @@ from .gradcam import (
     confidence_from_threshold,
     overlay_gradcam,
     peak_region_from_cam,
+    render_raw_gradcam,
 )
+from .image_quality import assess_image_quality
 from .model_architecture import (
     IMAGENET_MEAN,
     IMAGENET_STD,
@@ -72,11 +74,16 @@ class PneumoniaPredictor:
 
     def predict(self, image_bytes: bytes) -> dict[str, Any]:
         image = self._load_image(image_bytes)
+        quality_warnings = assess_image_quality(image)
 
         with self.lock:
             if self.using_checkpoint:
-                return self._predict_with_checkpoint(image)
-            return self._predict_demo(image)
+                result = self._predict_with_checkpoint(image)
+            else:
+                result = self._predict_demo(image)
+
+        result["image_quality_warnings"] = quality_warnings
+        return result
 
     def _predict_with_checkpoint(self, image: Image.Image) -> dict[str, Any]:
         tensor = self.preprocess(image).unsqueeze(0).to(self.device)
@@ -103,7 +110,7 @@ class PneumoniaPredictor:
 
         cam = self.gradcam.generate(logits, gradcam_class, image.size)
         region_name, region_score = peak_region_from_cam(cam)
-        heatmap_url = self._save_heatmap(image, cam, use_raw_overlay=True)
+        heatmap_url, heatmap_raw_url = self._save_heatmaps(image, cam, use_raw_overlay=True)
         confidence = confidence_from_threshold(p_pneumonia, SCREENING_THRESHOLD)
 
         return {
@@ -119,6 +126,8 @@ class PneumoniaPredictor:
             "gradcam_note": GRADCAM_NOTE,
             "recommendation": recommendation,
             "heatmap_url": heatmap_url,
+            "heatmap_raw_url": heatmap_raw_url,
+            "gradcam_class_explained": gradcam_class,
             "suspicious_region": region_name,
             "region_opacity_score": round(region_score, 4),
             "opacity_pattern": self._opacity_pattern(prediction, region_score),
@@ -150,9 +159,10 @@ class PneumoniaPredictor:
         )
         region_name, region_score, region_scores = self._region_analysis(image)
         cam = self._opacity_heatmap(image, region_name)
-        heatmap_url = self._save_heatmap(image, cam, use_raw_overlay=False)
+        heatmap_url, heatmap_raw_url = self._save_heatmaps(image, cam, use_raw_overlay=False)
         confidence = confidence_from_threshold(p_pneumonia, SCREENING_THRESHOLD)
         opacity_pattern = self._opacity_pattern(prediction, region_score, region_scores)
+        gradcam_class = PNEUMONIA_CLASS_INDEX if prediction == "PNEUMONIA" else NORMAL_CLASS_INDEX
 
         return {
             "prediction": prediction,
@@ -170,6 +180,8 @@ class PneumoniaPredictor:
             "gradcam_note": GRADCAM_NOTE,
             "recommendation": self._recommendation(prediction, p_pneumonia),
             "heatmap_url": heatmap_url,
+            "heatmap_raw_url": heatmap_raw_url,
+            "gradcam_class_explained": gradcam_class,
             "suspicious_region": region_name,
             "region_opacity_score": round(region_score, 4),
             "opacity_pattern": opacity_pattern,
@@ -321,15 +333,43 @@ class PneumoniaPredictor:
 
         return np.clip((heatmap - low) / (high - low), 0.0, 1.0).astype(np.float32)
 
-    def _save_heatmap(self, image: Image.Image, cam: np.ndarray, use_raw_overlay: bool) -> str:
+    def _save_heatmaps(self, image: Image.Image, cam: np.ndarray, use_raw_overlay: bool) -> tuple[str, str]:
         if use_raw_overlay:
-            heatmap_image = overlay_gradcam(image, cam)
+            overlay_image = overlay_gradcam(image, cam)
+            raw_image = render_raw_gradcam(cam, image.size)
         else:
-            heatmap_image = overlay_gradcam(image, self._normalize_heatmap(cam))
+            normalized = self._normalize_heatmap(cam)
+            overlay_image = overlay_gradcam(image, normalized)
+            raw_image = render_raw_gradcam(normalized, image.size)
 
-        filename = f"{uuid.uuid4().hex}.png"
-        heatmap_image.save(self.heatmap_dir / filename)
-        return f"/static/heatmaps/{filename}"
+        overlay_filename = f"{uuid.uuid4().hex}.png"
+        raw_filename = f"{uuid.uuid4().hex}_raw.png"
+        overlay_image.save(self.heatmap_dir / overlay_filename)
+        raw_image.save(self.heatmap_dir / raw_filename)
+        return (
+            f"/static/heatmaps/{overlay_filename}",
+            f"/static/heatmaps/{raw_filename}",
+        )
+
+    def model_info(self) -> dict[str, Any]:
+        return {
+            "architecture": "resnet18",
+            "classifier_head": "Dropout(0.4) -> Linear(512,256) -> ReLU -> Dropout(0.2) -> Linear(256,2)",
+            "classes": {"0": "NORMAL", "1": "PNEUMONIA"},
+            "screening_threshold": SCREENING_THRESHOLD,
+            "screening_rule": "PNEUMONIA-like if model score (PNEUMONIA) >= 0.20",
+            "preprocessing": "Resize 224x224, grayscale (3 channels), ImageNet normalization",
+            "gradcam_layer": "model.layer4[-1]",
+            "gradcam_note": "Raw map shows model influence only; overlay blends influence onto the X-ray.",
+            "image_size": self.config.image_size,
+            "mean": list(self.config.mean),
+            "std": list(self.config.std),
+            "checkpoint_path": str(self.checkpoint_path) if self.checkpoint_path else None,
+            "model_loaded": self.using_checkpoint,
+            "model_mode": "trained_checkpoint" if self.using_checkpoint else "demo_heuristic",
+            "model_name": self.config.model_name if self.using_checkpoint else "demo_resnet18",
+            "model_summary": self.model_summary.splitlines()[0] if self.model_summary else None,
+        }
 
     def _opacity_pattern(
         self,

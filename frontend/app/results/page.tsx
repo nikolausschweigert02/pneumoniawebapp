@@ -5,6 +5,23 @@ import Link from "next/link";
 import { useEffect, useState } from "react";
 import type { StoredAnalysis } from "@/lib/types";
 
+type ModelInfo = {
+  architecture: string;
+  classifier_head: string;
+  classes: Record<string, string>;
+  screening_threshold: number;
+  screening_rule: string;
+  preprocessing: string;
+  gradcam_layer: string;
+  gradcam_note: string;
+  model_loaded: boolean;
+  model_mode: string;
+  model_name: string;
+  model_summary?: string | null;
+};
+
+type HeatmapView = "overlay" | "blend" | "raw";
+
 function loadStoredAnalysis() {
   if (typeof window === "undefined") {
     return null;
@@ -51,15 +68,70 @@ function ResultCard({
   );
 }
 
+function ScoreBar({
+  label,
+  value,
+  colorClass,
+  threshold
+}: {
+  label: string;
+  value: number;
+  colorClass: string;
+  threshold: number;
+}) {
+  const width = `${Math.max(0, Math.min(100, Math.round(value * 100)))}%`;
+  const thresholdLeft = `${Math.round(threshold * 100)}%`;
+
+  return (
+    <div>
+      <div className="mb-2 flex items-center justify-between text-sm">
+        <span className="text-slate-500">{label}</span>
+        <span className="font-semibold text-slate-900">{formatPercent(value)}</span>
+      </div>
+      <div className="relative h-3 rounded-full bg-slate-100">
+        <div className={`h-3 rounded-full ${colorClass}`} style={{ width }} />
+        <div
+          className="absolute -top-1 bottom-0 w-0.5 bg-amber-500"
+          style={{ left: thresholdLeft }}
+          title={`${formatPercent(threshold)} screening threshold`}
+        />
+      </div>
+    </div>
+  );
+}
+
 export default function ResultsPage() {
   const [analysis, setAnalysis] = useState<StoredAnalysis | null>(null);
+  const [heatmapView, setHeatmapView] = useState<HeatmapView>("overlay");
+  const [heatmapOpacity, setHeatmapOpacity] = useState(0.62);
+  const [modelInfo, setModelInfo] = useState<ModelInfo | null>(null);
 
   useEffect(() => {
     // eslint-disable-next-line react-hooks/set-state-in-effect -- hydrate analysis from browser session
     setAnalysis(loadStoredAnalysis());
   }, []);
 
+  useEffect(() => {
+    async function loadModelInfo() {
+      try {
+        const response = await fetch("/api/health");
+        if (!response.ok) {
+          return;
+        }
+        const payload = await response.json();
+        setModelInfo(payload.model_info ?? null);
+      } catch {
+        setModelInfo(null);
+      }
+    }
+
+    loadModelInfo();
+  }, []);
+
   const heatmapUrl = analysis?.heatmap_url ? resolveHeatmapUrl(analysis.heatmap_url) : "";
+  const heatmapRawUrl = analysis?.heatmap_raw_url
+    ? resolveHeatmapUrl(analysis.heatmap_raw_url)
+    : heatmapUrl;
 
   if (!analysis) {
     return (
@@ -107,6 +179,17 @@ export default function ResultsPage() {
         </div>
       </div>
 
+      {analysis.image_quality_warnings?.length ? (
+        <div className="mb-6 rounded-2xl border border-amber-200 bg-amber-50 p-4">
+          <p className="text-sm font-semibold text-amber-900">Image quality notes</p>
+          <ul className="mt-2 space-y-1 text-sm leading-6 text-amber-800">
+            {analysis.image_quality_warnings.map((warning) => (
+              <li key={warning}>• {warning}</li>
+            ))}
+          </ul>
+        </div>
+      ) : null}
+
       <div className="grid gap-6 lg:grid-cols-[0.95fr_1.05fr]">
         <section className="rounded-3xl border border-white/80 bg-white/90 p-6 shadow-xl shadow-slate-900/5">
           <h2 className="mb-4 text-lg font-semibold text-slate-900">Original image</h2>
@@ -133,17 +216,19 @@ export default function ResultsPage() {
           </ResultCard>
 
           <ResultCard title="AI model scores">
-            <div className="space-y-3">
-              <div>
-                <p className="text-sm text-slate-500">Pneumonia score</p>
-                <p className="text-3xl font-bold text-slate-950">{formatPercent(pneumoniaScore)}</p>
-              </div>
-              <div>
-                <p className="text-sm text-slate-500">Normal score</p>
-                <p className="text-2xl font-semibold text-slate-800">{formatPercent(normalScore)}</p>
-              </div>
+            <div className="space-y-4">
+              <ScoreBar
+                label="Pneumonia score"
+                value={pneumoniaScore}
+                colorClass="bg-amber-500"
+                threshold={threshold}
+              />
+              <ScoreBar label="Normal score" value={normalScore} colorClass="bg-emerald-500" threshold={threshold} />
             </div>
-            <p className="mt-3 text-sm text-slate-500">
+            <p className="mt-4 text-xs text-slate-500">
+              Amber line marks the {formatPercent(threshold)} screening threshold on the pneumonia score bar.
+            </p>
+            <p className="mt-2 text-sm text-slate-500">
               These are model outputs from the neural network, not calibrated clinical probabilities.
             </p>
           </ResultCard>
@@ -158,34 +243,166 @@ export default function ResultsPage() {
           <ResultCard title="Confidence">
             <p className="text-4xl font-bold capitalize text-slate-950">{analysis.confidence}</p>
             <p className="mt-2 text-sm text-slate-500">
-              Based on how far the pneumonia score is from the decision threshold.
+              {analysis.confidence_disclaimer ??
+                "Based on how far the pneumonia score is from the decision threshold."}
             </p>
           </ResultCard>
 
-          <ResultCard title="Grad-CAM heatmap">
-            <div className="overflow-hidden rounded-2xl bg-slate-950">
-              <Image
-                src={heatmapUrl}
-                alt="Grad-CAM heatmap visualization"
-                width={720}
-                height={720}
-                unoptimized
-                className="h-auto w-full object-contain"
-              />
+          <ResultCard title="Grad-CAM heatmap" accent="md:col-span-2">
+            <div className="mb-4 flex flex-wrap gap-2">
+              {(
+                [
+                  ["overlay", "Blended overlay"],
+                  ["blend", "Adjustable blend"],
+                  ["raw", "Raw influence map"]
+                ] as const
+              ).map(([view, label]) => (
+                <button
+                  key={view}
+                  type="button"
+                  onClick={() => setHeatmapView(view)}
+                  className={`rounded-xl px-4 py-2 text-sm font-semibold transition ${
+                    heatmapView === view
+                      ? "bg-sky-600 text-white"
+                      : "border border-slate-200 bg-white text-slate-700 hover:bg-slate-50"
+                  }`}
+                >
+                  {label}
+                </button>
+              ))}
             </div>
+
+            <div className="overflow-hidden rounded-2xl bg-slate-950">
+              {heatmapView === "overlay" ? (
+                <Image
+                  src={heatmapUrl}
+                  alt="Grad-CAM overlay on chest X-ray"
+                  width={720}
+                  height={720}
+                  unoptimized
+                  className="h-auto w-full object-contain"
+                />
+              ) : heatmapView === "raw" ? (
+                <Image
+                  src={heatmapRawUrl}
+                  alt="Raw Grad-CAM influence map"
+                  width={720}
+                  height={720}
+                  unoptimized
+                  className="h-auto w-full object-contain"
+                />
+              ) : (
+                <div className="relative">
+                  <Image
+                    src={analysis.originalImage}
+                    alt="Original chest X-ray for blend comparison"
+                    width={720}
+                    height={720}
+                    unoptimized
+                    className="h-auto w-full object-contain"
+                  />
+                  <Image
+                    src={heatmapRawUrl}
+                    alt="Grad-CAM influence overlay"
+                    width={720}
+                    height={720}
+                    unoptimized
+                    style={{ opacity: heatmapOpacity }}
+                    className="absolute inset-0 h-full w-full object-contain"
+                  />
+                </div>
+              )}
+            </div>
+
+            {heatmapView === "blend" ? (
+              <div className="mt-4">
+                <label className="flex items-center justify-between text-sm text-slate-600">
+                  <span>Heatmap opacity</span>
+                  <span className="font-semibold text-slate-900">{Math.round(heatmapOpacity * 100)}%</span>
+                </label>
+                <input
+                  type="range"
+                  min={0}
+                  max={100}
+                  value={Math.round(heatmapOpacity * 100)}
+                  onChange={(event) => setHeatmapOpacity(Number(event.target.value) / 100)}
+                  className="mt-2 w-full accent-sky-600"
+                />
+              </div>
+            ) : null}
+
             <p className="mt-3 text-sm leading-6 text-slate-500">
-              {analysis.gradcam_note ??
-                "The heatmap shows which image regions influenced the AI. It does not prove pneumonia is present."}
+              {heatmapView === "raw"
+                ? "Raw map shows model influence only, without blending onto the original X-ray."
+                : heatmapView === "blend"
+                  ? "Drag the slider to compare the original X-ray with the raw influence map."
+                  : analysis.gradcam_note ??
+                    "The heatmap shows which image regions influenced the AI. It does not prove pneumonia is present."}
             </p>
+            {analysis.gradcam_class_explained !== undefined ? (
+              <p className="mt-2 text-xs text-slate-400">
+                Explained class: {analysis.gradcam_class_explained} (
+                {analysis.gradcam_class_explained === 1 ? "PNEUMONIA" : "NORMAL"})
+              </p>
+            ) : null}
           </ResultCard>
 
-          <ResultCard title="AI explanation" accent="md:col-span-2 border-indigo-200">
+          <ResultCard title="AI explanation" accent="border-indigo-200">
             <p className="text-lg leading-8 text-slate-700">
               {analysis.suspicious_region
                 ? `The strongest model influence was in the ${analysis.suspicious_region}.`
                 : analysis.explanation}
             </p>
+            {analysis.opacity_pattern ? (
+              <p className="mt-3 text-sm text-slate-500">
+                Opacity pattern: <span className="font-medium text-slate-700">{analysis.opacity_pattern}</span>
+              </p>
+            ) : null}
           </ResultCard>
+
+          {analysis.key_findings?.length ? (
+            <ResultCard title="Key findings" accent="border-slate-200">
+              <ul className="space-y-2 text-sm leading-7 text-slate-700">
+                {analysis.key_findings.map((finding) => (
+                  <li key={finding} className="flex gap-2">
+                    <span className="text-sky-500">•</span>
+                    <span>{finding}</span>
+                  </li>
+                ))}
+              </ul>
+            </ResultCard>
+          ) : null}
+
+          {modelInfo ? (
+            <ResultCard title="Model info" accent="md:col-span-2 border-violet-100 bg-violet-50/40">
+              <div className="grid gap-3 md:grid-cols-2">
+                <p className="text-sm text-slate-700">
+                  <span className="font-semibold text-slate-900">Architecture:</span> {modelInfo.architecture}
+                </p>
+                <p className="text-sm text-slate-700">
+                  <span className="font-semibold text-slate-900">Mode:</span> {modelInfo.model_mode}
+                </p>
+                <p className="text-sm text-slate-700 md:col-span-2">
+                  <span className="font-semibold text-slate-900">Classifier head:</span> {modelInfo.classifier_head}
+                </p>
+                <p className="text-sm text-slate-700 md:col-span-2">
+                  <span className="font-semibold text-slate-900">Preprocessing:</span> {modelInfo.preprocessing}
+                </p>
+                <p className="text-sm text-slate-700">
+                  <span className="font-semibold text-slate-900">Screening threshold:</span>{" "}
+                  {modelInfo.screening_threshold}
+                </p>
+                <p className="text-sm text-slate-700">
+                  <span className="font-semibold text-slate-900">Grad-CAM layer:</span> {modelInfo.gradcam_layer}
+                </p>
+                {modelInfo.model_summary ? (
+                  <p className="text-sm text-slate-700 md:col-span-2">
+                    <span className="font-semibold text-slate-900">Summary:</span> {modelInfo.model_summary}
+                  </p>
+                ) : null}
+              </div>
+            </ResultCard>
+          ) : null}
 
           <ResultCard title="Clinical recommendation" accent="md:col-span-2 border-sky-200">
             <p className="text-lg leading-8 text-slate-700">{analysis.recommendation}</p>

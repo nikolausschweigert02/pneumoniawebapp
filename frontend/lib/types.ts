@@ -14,6 +14,9 @@ export type PredictionResponse = {
   gradcam_note: string;
   recommendation: string;
   heatmap_url: string;
+  heatmap_raw_url: string;
+  gradcam_class_explained: number;
+  image_quality_warnings: string[];
   suspicious_region: string;
   region_opacity_score: number;
   opacity_pattern: OpacityPattern;

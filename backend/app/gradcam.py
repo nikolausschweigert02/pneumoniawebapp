@@ -87,6 +87,16 @@ def overlay_gradcam(image: Image.Image, cam: np.ndarray, alpha_strength: float =
     return Image.fromarray((overlay * 255).astype(np.uint8))
 
 
+def render_raw_gradcam(cam: np.ndarray, image_size: tuple[int, int]) -> Image.Image:
+    """Render the colormap Grad-CAM without blending onto the original X-ray."""
+    cam_resized = np.asarray(
+        Image.fromarray((cam * 255).astype(np.uint8)).resize(image_size, Image.Resampling.BILINEAR),
+        dtype=np.float32,
+    ) / 255.0
+    heat = colorize_heatmap(cam_resized)
+    return Image.fromarray((heat * 255).astype(np.uint8))
+
+
 def peak_region_from_cam(cam: np.ndarray) -> tuple[str, float]:
     """Map the strongest Grad-CAM activation to a coarse lung quadrant label."""
     if cam.size == 0 or float(cam.max()) <= 0.0:

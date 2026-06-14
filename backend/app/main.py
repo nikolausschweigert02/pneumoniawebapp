@@ -46,8 +46,14 @@ def health() -> dict[str, Any]:
         "status": "ok",
         "model_loaded": predictor.using_checkpoint,
         "model_mode": "trained_checkpoint" if predictor.using_checkpoint else "demo_heuristic",
-        "model_name": predictor.config.model_name if predictor.using_checkpoint else "demo_resnet18"
+        "model_name": predictor.config.model_name if predictor.using_checkpoint else "demo_resnet18",
+        "model_info": predictor.model_info(),
     }
+
+
+@app.get("/model/info")
+def model_info() -> dict[str, Any]:
+    return predictor.model_info()
 
 
 @app.post("/predict", response_model=PredictionResponse)
@@ -66,5 +72,9 @@ async def predict(request: Request, file: UploadFile = File(...)) -> PredictionR
     except Exception as exc:
         raise HTTPException(status_code=500, detail="Prediction failed.") from exc
 
-    heatmap_url = str(request.base_url).rstrip("/") + result["heatmap_url"]
-    return PredictionResponse(**{**result, "heatmap_url": heatmap_url})
+    base_url = str(request.base_url).rstrip("/")
+    heatmap_url = base_url + result["heatmap_url"]
+    heatmap_raw_url = base_url + result["heatmap_raw_url"]
+    return PredictionResponse(
+        **{**result, "heatmap_url": heatmap_url, "heatmap_raw_url": heatmap_raw_url}
+    )

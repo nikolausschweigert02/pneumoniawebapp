@@ -3,12 +3,18 @@
 import Image from "next/image";
 import { useRouter } from "next/navigation";
 import { ChangeEvent, DragEvent, FormEvent, useRef, useState } from "react";
+import { DemoFlow } from "@/components/DemoFlow";
 import type { PredictionResponse, StoredAnalysis } from "@/lib/types";
 
-const API_BASE_URL = process.env.NEXT_PUBLIC_API_BASE_URL ?? "http://localhost:8000";
 const PREDICT_ENDPOINT = process.env.NEXT_PUBLIC_API_BASE_URL
-  ? `${API_BASE_URL.replace(/\/$/, "")}/predict`
+  ? `${(process.env.NEXT_PUBLIC_API_BASE_URL ?? "http://localhost:8000").replace(/\/$/, "")}/predict`
   : "/api/predict";
+
+const DEMO_STEPS = [
+  "Upload a chest X-ray image",
+  "Click Analyze X-ray",
+  "Review the AI result and doctor recommendations"
+];
 
 function fileToDataUrl(file: File): Promise<string> {
   return new Promise((resolve, reject) => {
@@ -111,38 +117,50 @@ export default function Home() {
   }
 
   return (
-    <main className="mx-auto flex min-h-screen w-full max-w-6xl flex-col px-6 py-10">
-      <section className="grid flex-1 items-center gap-10 lg:grid-cols-[1.05fr_0.95fr]">
+    <main className="mx-auto min-h-screen w-full max-w-6xl px-6 py-8">
+      <DemoFlow current="upload" />
+
+      <section className="grid gap-8 lg:grid-cols-[1fr_1.05fr]">
         <div>
-          <p className="mb-4 inline-flex rounded-full bg-sky-100 px-4 py-2 text-sm font-semibold text-sky-800">
-            Explainable Pneumonia AI MVP
+          <p className="inline-flex rounded-full bg-sky-100 px-4 py-2 text-sm font-semibold text-sky-800">
+            Explainable Pneumonia AI
           </p>
-          <h1 className="text-4xl font-bold tracking-tight text-slate-950 sm:text-6xl">
-            Upload a chest X-ray and get an explainable pneumonia assessment.
+          <h1 className="mt-4 text-4xl font-bold tracking-tight text-slate-950 sm:text-5xl">
+            Chest X-ray pneumonia screening demo
           </h1>
-          <p className="mt-6 max-w-2xl text-lg leading-8 text-slate-600">
-            Upload a chest X-ray to get an AI-assisted pneumonia screening result, model scores,
-            a Grad-CAM explanation, and a clinical recommendation for physician review.
+          <p className="mt-4 max-w-xl text-lg leading-8 text-slate-600">
+            A simple 3-step demo: upload an X-ray, run the trained AI model, and review the
+            explainable result.
           </p>
-          <div className="mt-8 grid gap-4 text-sm text-slate-600 sm:grid-cols-3">
-            {["ResNet18 screening", "Grad-CAM explanation", "Clinical summary"].map((item) => (
-              <div key={item} className="rounded-2xl border border-white/70 bg-white/80 p-4 shadow-sm">
-                <span className="font-semibold text-slate-900">{item}</span>
-              </div>
+
+          <ol className="mt-8 space-y-3">
+            {DEMO_STEPS.map((step, index) => (
+              <li
+                key={step}
+                className="flex items-start gap-3 rounded-2xl border border-white/70 bg-white/80 p-4 shadow-sm"
+              >
+                <span className="flex h-8 w-8 shrink-0 items-center justify-center rounded-full bg-sky-600 text-sm font-bold text-white">
+                  {index + 1}
+                </span>
+                <span className="pt-1 text-sm font-medium text-slate-800">{step}</span>
+              </li>
             ))}
-          </div>
+          </ol>
         </div>
 
         <form
           onSubmit={handleSubmit}
-          className="rounded-3xl border border-white/80 bg-white/90 p-6 shadow-2xl shadow-sky-900/10 backdrop-blur"
+          className="rounded-3xl border border-white/80 bg-white/95 p-6 shadow-xl"
         >
+          <h2 className="text-lg font-semibold text-slate-900">Upload chest X-ray</h2>
+          <p className="mt-1 text-sm text-slate-500">PNG, JPG, JPEG, or WEBP</p>
+
           <div
             onDragOver={handleDragOver}
             onDragLeave={handleDragLeave}
             onDrop={handleDrop}
-            className={`rounded-2xl border-2 border-dashed p-6 text-center transition ${
-              isDragging ? "border-sky-500 bg-sky-100" : "border-sky-200 bg-sky-50/60"
+            className={`mt-4 rounded-2xl border-2 border-dashed p-4 transition ${
+              isDragging ? "border-sky-500 bg-sky-50" : "border-sky-200 bg-sky-50/50"
             }`}
           >
             <input
@@ -153,18 +171,19 @@ export default function Home() {
               onChange={handleFileChange}
               className="hidden"
             />
-          <div
-            role="button"
-            tabIndex={0}
-            onClick={() => fileInputRef.current?.click()}
-            onKeyDown={(event) => {
-              if (event.key === "Enter" || event.key === " ") {
-                event.preventDefault();
-                fileInputRef.current?.click();
-              }
-            }}
-            className="block cursor-pointer rounded-2xl bg-white px-6 py-10 transition"
-          >
+
+            <div
+              role="button"
+              tabIndex={0}
+              onClick={() => fileInputRef.current?.click()}
+              onKeyDown={(event) => {
+                if (event.key === "Enter" || event.key === " ") {
+                  event.preventDefault();
+                  fileInputRef.current?.click();
+                }
+              }}
+              className="cursor-pointer rounded-2xl bg-white px-4 py-8 text-center"
+            >
               {previewUrl ? (
                 <div>
                   <Image
@@ -173,41 +192,25 @@ export default function Home() {
                     width={520}
                     height={420}
                     unoptimized
-                    className="mx-auto max-h-[420px] rounded-xl object-contain"
+                    className="mx-auto max-h-[360px] rounded-xl object-contain"
                   />
-                  <button
-                    type="button"
-                    onClick={() => fileInputRef.current?.click()}
-                    className="mt-5 rounded-xl border border-sky-200 px-5 py-2 text-sm font-semibold text-sky-700 transition hover:bg-sky-50"
-                  >
-                    Choose a different image
-                  </button>
+                  <p className="mt-4 text-sm font-medium text-sky-700">Tap to choose a different image</p>
                 </div>
               ) : (
                 <div className="mx-auto max-w-sm">
-                  <div className="mx-auto mb-4 flex h-16 w-16 items-center justify-center rounded-full bg-sky-100 text-3xl">
+                  <div className="mx-auto mb-4 flex h-14 w-14 items-center justify-center rounded-full bg-sky-100 text-2xl text-sky-700">
                     +
                   </div>
-                  <p className="text-lg font-semibold text-slate-900">Choose chest X-ray image</p>
-                  <p className="mt-2 text-sm text-slate-500">
-                    Drag and drop an image here, or use the upload button below.
-                  </p>
-                  <button
-                    type="button"
-                    onClick={() => fileInputRef.current?.click()}
-                    className="mt-5 rounded-xl bg-sky-600 px-5 py-3 text-sm font-semibold text-white shadow-sm transition hover:bg-sky-700"
-                  >
-                    Upload image
-                  </button>
-                  <p className="mt-3 text-xs text-slate-400">PNG, JPG, JPEG, or WEBP files are supported.</p>
+                  <p className="text-lg font-semibold text-slate-900">Choose or drop an X-ray</p>
+                  <p className="mt-2 text-sm text-slate-500">Click here or drag an image into this box.</p>
                 </div>
               )}
             </div>
           </div>
 
           {selectedFile ? (
-            <p className="mt-4 text-sm text-slate-600">
-              Selected: <span className="font-medium text-slate-900">{selectedFile.name}</span>
+            <p className="mt-4 rounded-xl bg-slate-50 px-4 py-3 text-sm text-slate-700">
+              Selected file: <span className="font-semibold text-slate-900">{selectedFile.name}</span>
             </p>
           ) : null}
 
@@ -220,13 +223,10 @@ export default function Home() {
           <button
             type="submit"
             disabled={!canAnalyze}
-            className="mt-6 w-full rounded-2xl bg-sky-600 px-6 py-4 text-base font-semibold text-white shadow-lg shadow-sky-600/25 transition hover:bg-sky-700 disabled:cursor-not-allowed disabled:bg-slate-300 disabled:shadow-none"
+            className="mt-5 w-full rounded-2xl bg-sky-600 px-6 py-4 text-base font-semibold text-white shadow-lg shadow-sky-600/20 transition hover:bg-sky-700 disabled:cursor-not-allowed disabled:bg-slate-300 disabled:shadow-none"
           >
-            {isAnalyzing ? "Analyzing..." : "Analyze X-ray"}
+            {isAnalyzing ? "Analyzing X-ray..." : "Analyze X-ray"}
           </button>
-          <p className="mt-4 text-xs leading-5 text-slate-500">
-            MVP only. Predictions must be reviewed by qualified clinicians and are not a standalone diagnosis.
-          </p>
         </form>
       </section>
     </main>

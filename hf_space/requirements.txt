@@ -1,0 +1,6 @@
+gradio>=5.0.0
+torch
+torchvision
+pillow
+numpy
+huggingface_hub

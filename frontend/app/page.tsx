@@ -4,6 +4,7 @@ import Image from "next/image";
 import { useRouter } from "next/navigation";
 import { ChangeEvent, DragEvent, FormEvent, useRef, useState } from "react";
 import type { PredictionResponse, StoredAnalysis } from "@/lib/types";
+import { saveStoredAnalysis } from "@/lib/analysis-storage";
 
 const API_BASE_URL = process.env.NEXT_PUBLIC_API_BASE_URL ?? "http://localhost:8000";
 const PREDICT_ENDPOINT = process.env.NEXT_PUBLIC_API_BASE_URL
@@ -131,7 +132,7 @@ export default function Home() {
         fileName: selectedFile.name
       };
 
-      sessionStorage.setItem("pneumonia-analysis", JSON.stringify(storedAnalysis));
+      await saveStoredAnalysis(storedAnalysis);
       router.push("/results");
     } catch (err) {
       setError(err instanceof Error ? err.message : "Unable to analyze the image.");

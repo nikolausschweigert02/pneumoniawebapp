@@ -3,6 +3,7 @@
 import Image from "next/image";
 import Link from "next/link";
 import { useEffect, useState } from "react";
+import { loadStoredAnalysis } from "@/lib/analysis-storage";
 import type { StoredAnalysis } from "@/lib/types";
 
 type ModelInfo = {
@@ -19,25 +20,6 @@ type ModelInfo = {
   model_name: string;
   model_summary?: string | null;
 };
-
-type HeatmapView = "overlay" | "blend" | "raw";
-
-function loadStoredAnalysis() {
-  if (typeof window === "undefined") {
-    return null;
-  }
-
-  const stored = window.sessionStorage.getItem("pneumonia-analysis");
-  if (!stored) {
-    return null;
-  }
-
-  try {
-    return JSON.parse(stored) as StoredAnalysis;
-  } catch {
-    return null;
-  }
-}
 
 function formatPercent(value: number) {
   return `${Math.round(value * 100)}%`;
@@ -102,8 +84,6 @@ function ScoreBar({
 
 export default function ResultsPage() {
   const [analysis, setAnalysis] = useState<StoredAnalysis | null>(null);
-  const [heatmapView, setHeatmapView] = useState<HeatmapView>("overlay");
-  const [heatmapOpacity, setHeatmapOpacity] = useState(0.62);
   const [modelInfo, setModelInfo] = useState<ModelInfo | null>(null);
 
   useEffect(() => {
@@ -129,9 +109,6 @@ export default function ResultsPage() {
   }, []);
 
   const heatmapUrl = analysis?.heatmap_url ? resolveHeatmapUrl(analysis.heatmap_url) : "";
-  const heatmapRawUrl = analysis?.heatmap_raw_url
-    ? resolveHeatmapUrl(analysis.heatmap_raw_url)
-    : heatmapUrl;
 
   if (!analysis) {
     return (
@@ -249,102 +226,20 @@ export default function ResultsPage() {
           </ResultCard>
 
           <ResultCard title="Grad-CAM heatmap" accent="md:col-span-2">
-            <div className="mb-4 flex flex-wrap gap-2">
-              {(
-                [
-                  ["overlay", "Blended overlay"],
-                  ["blend", "Adjustable blend"],
-                  ["raw", "Raw influence map"]
-                ] as const
-              ).map(([view, label]) => (
-                <button
-                  key={view}
-                  type="button"
-                  onClick={() => setHeatmapView(view)}
-                  className={`rounded-xl px-4 py-2 text-sm font-semibold transition ${
-                    heatmapView === view
-                      ? "bg-sky-600 text-white"
-                      : "border border-slate-200 bg-white text-slate-700 hover:bg-slate-50"
-                  }`}
-                >
-                  {label}
-                </button>
-              ))}
-            </div>
-
             <div className="overflow-hidden rounded-2xl bg-slate-950">
-              {heatmapView === "overlay" ? (
-                <Image
-                  src={heatmapUrl}
-                  alt="Grad-CAM overlay on chest X-ray"
-                  width={720}
-                  height={720}
-                  unoptimized
-                  className="h-auto w-full object-contain"
-                />
-              ) : heatmapView === "raw" ? (
-                <Image
-                  src={heatmapRawUrl}
-                  alt="Raw Grad-CAM influence map"
-                  width={720}
-                  height={720}
-                  unoptimized
-                  className="h-auto w-full object-contain"
-                />
-              ) : (
-                <div className="relative">
-                  <Image
-                    src={analysis.originalImage}
-                    alt="Original chest X-ray for blend comparison"
-                    width={720}
-                    height={720}
-                    unoptimized
-                    className="h-auto w-full object-contain"
-                  />
-                  <Image
-                    src={heatmapRawUrl}
-                    alt="Grad-CAM influence overlay"
-                    width={720}
-                    height={720}
-                    unoptimized
-                    style={{ opacity: heatmapOpacity }}
-                    className="absolute inset-0 h-full w-full object-contain"
-                  />
-                </div>
-              )}
+              <Image
+                src={heatmapUrl}
+                alt="Grad-CAM heatmap visualization"
+                width={720}
+                height={720}
+                unoptimized
+                className="h-auto w-full object-contain"
+              />
             </div>
-
-            {heatmapView === "blend" ? (
-              <div className="mt-4">
-                <label className="flex items-center justify-between text-sm text-slate-600">
-                  <span>Heatmap opacity</span>
-                  <span className="font-semibold text-slate-900">{Math.round(heatmapOpacity * 100)}%</span>
-                </label>
-                <input
-                  type="range"
-                  min={0}
-                  max={100}
-                  value={Math.round(heatmapOpacity * 100)}
-                  onChange={(event) => setHeatmapOpacity(Number(event.target.value) / 100)}
-                  className="mt-2 w-full accent-sky-600"
-                />
-              </div>
-            ) : null}
-
             <p className="mt-3 text-sm leading-6 text-slate-500">
-              {heatmapView === "raw"
-                ? "Raw map shows model influence only, without blending onto the original X-ray."
-                : heatmapView === "blend"
-                  ? "Drag the slider to compare the original X-ray with the raw influence map."
-                  : analysis.gradcam_note ??
-                    "The heatmap shows which image regions influenced the AI. It does not prove pneumonia is present."}
+              {analysis.gradcam_note ??
+                "The heatmap shows which image regions influenced the AI. It does not prove pneumonia is present."}
             </p>
-            {analysis.gradcam_class_explained !== undefined ? (
-              <p className="mt-2 text-xs text-slate-400">
-                Explained class: {analysis.gradcam_class_explained} (
-                {analysis.gradcam_class_explained === 1 ? "PNEUMONIA" : "NORMAL"})
-              </p>
-            ) : null}
           </ResultCard>
 
           <ResultCard title="AI explanation" accent="border-indigo-200">
@@ -405,7 +300,10 @@ export default function ResultsPage() {
           ) : null}
 
           <ResultCard title="Clinical recommendation" accent="md:col-span-2 border-sky-200">
-            <p className="text-lg leading-8 text-slate-700">{analysis.recommendation}</p>
+            <p className="text-lg leading-8 text-slate-700">
+              {analysis.recommendation ||
+                "Review the chest X-ray together with symptoms, vitals, and medical history before making a clinical decision."}
+            </p>
             <p className="mt-4 rounded-2xl bg-slate-50 p-4 text-sm leading-6 text-slate-500">
               Educational research demo only. Not a medical device. A doctor must always review the X-ray,
               symptoms, and clinical findings.

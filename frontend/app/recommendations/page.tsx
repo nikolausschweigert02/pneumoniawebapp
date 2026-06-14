@@ -2,25 +2,9 @@
 
 import Link from "next/link";
 import { useEffect, useState } from "react";
+import { loadStoredAnalysis } from "@/lib/analysis-storage";
 import { buildDoctorActionPlan } from "@/lib/recommendations";
 import type { StoredAnalysis } from "@/lib/types";
-
-function loadStoredAnalysis() {
-  if (typeof window === "undefined") {
-    return null;
-  }
-
-  const stored = window.sessionStorage.getItem("pneumonia-analysis");
-  if (!stored) {
-    return null;
-  }
-
-  try {
-    return JSON.parse(stored) as StoredAnalysis;
-  } catch {
-    return null;
-  }
-}
 
 function toneClasses(tone: "amber" | "emerald" | "red") {
   if (tone === "red") {
@@ -36,17 +20,27 @@ function toneClasses(tone: "amber" | "emerald" | "red") {
 
 export default function RecommendationsPage() {
   const [analysis, setAnalysis] = useState<StoredAnalysis | null>(null);
+  const [isReady, setIsReady] = useState(false);
 
   useEffect(() => {
     // eslint-disable-next-line react-hooks/set-state-in-effect -- hydrate analysis from browser session
     setAnalysis(loadStoredAnalysis());
+    setIsReady(true);
   }, []);
+
+  if (!isReady) {
+    return (
+      <main className="mx-auto flex min-h-screen max-w-3xl flex-col items-center justify-center px-6 text-center">
+        <p className="text-slate-600">Loading recommendations...</p>
+      </main>
+    );
+  }
 
   if (!analysis) {
     return (
       <main className="mx-auto flex min-h-screen max-w-3xl flex-col items-center justify-center px-6 text-center">
         <div className="rounded-3xl bg-white p-10 shadow-xl">
-          <h1 className="text-3xl font-bold text-slate-950">No diagnosis available</h1>
+          <h1 className="text-3xl font-bold text-slate-950">No analysis available</h1>
           <p className="mt-4 text-slate-600">
             Analyze a chest X-ray first to generate physician action recommendations.
           </p>
@@ -62,6 +56,9 @@ export default function RecommendationsPage() {
   }
 
   const actionPlan = buildDoctorActionPlan(analysis);
+  const clinicalRecommendation =
+    analysis.recommendation ||
+    "Review the chest X-ray together with symptoms, vitals, and medical history before making a clinical decision.";
 
   return (
     <main className="mx-auto min-h-screen w-full max-w-6xl px-6 py-10">
@@ -78,7 +75,7 @@ export default function RecommendationsPage() {
             href="/results"
             className="rounded-2xl border border-slate-200 bg-white px-5 py-3 text-center font-semibold text-slate-700 shadow-sm hover:bg-slate-50"
           >
-            Back to diagnosis
+            Back to results
           </Link>
           <Link
             href="/"
@@ -89,6 +86,13 @@ export default function RecommendationsPage() {
         </div>
       </div>
 
+      <section className="mb-6 rounded-3xl border border-sky-200 bg-white p-6 shadow-sm">
+        <h2 className="text-sm font-semibold uppercase tracking-[0.2em] text-sky-700">
+          Clinical recommendation
+        </h2>
+        <p className="mt-4 text-lg leading-8 text-slate-700">{clinicalRecommendation}</p>
+      </section>
+
       <section className={`rounded-3xl border p-6 shadow-sm ${toneClasses(actionPlan.triageTone)}`}>
         <div className="flex flex-col gap-4 md:flex-row md:items-center md:justify-between">
           <div>
@@ -96,7 +100,9 @@ export default function RecommendationsPage() {
             <p className="mt-3 text-3xl font-bold">{actionPlan.triageLevel}</p>
           </div>
           <div className="rounded-2xl bg-white/70 px-5 py-4 text-sm font-semibold">
-            {(analysis.screening_label ?? analysis.prediction)} · {Math.round((analysis.model_score_pneumonia ?? analysis.probability) * 100)}% pneumonia score · {analysis.confidence} confidence
+            {(analysis.screening_label ?? analysis.prediction)} ·{" "}
+            {Math.round((analysis.model_score_pneumonia ?? analysis.probability) * 100)}% pneumonia score ·{" "}
+            {analysis.confidence} confidence
           </div>
         </div>
         <p className="mt-5 max-w-4xl text-base leading-7">{actionPlan.summary}</p>

@@ -2,6 +2,7 @@
 
 import Link from "next/link";
 import { useState } from "react";
+import { ScientificReferencesCompact } from "@/components/ScientificReferences";
 import { buildDoctorActionPlan } from "@/lib/recommendations";
 import type { StoredAnalysis } from "@/lib/types";
 
@@ -141,11 +142,16 @@ export default function RecommendationsPage() {
       <section className="mt-6 rounded-3xl border border-slate-200 bg-white p-6 shadow-sm">
         <h2 className="text-xl font-bold text-slate-950">Documentation note</h2>
         <p className="mt-3 leading-7 text-slate-600">
-          Record the AI prediction, probability, heatmap region, clinician interpretation, and the final medical
-          decision. This MVP is an advisory tool and does not replace radiologist review, local protocols, or
-          physician judgment.
+          Record the AI prediction, probability, heatmap region, clinician interpretation, and the final
+          medical decision. Treatment pathways should follow ATS/IDSA CAP guidance (Metlay et al., 2019)
+          and local protocol. This tool is advisory and does not replace radiologist review or physician
+          judgment.
         </p>
       </section>
+
+      <div className="mt-8">
+        <ScientificReferencesCompact />
+      </div>
     </main>
   );
 }

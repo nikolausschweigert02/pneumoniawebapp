@@ -1,9 +1,11 @@
 import type { Metadata } from "next";
+import AppNav from "@/components/AppNav";
 import "./globals.css";
 
 export const metadata: Metadata = {
   title: "Explainable Pneumonia AI",
-  description: "MVP for pneumonia detection with confidence, Grad-CAM heatmaps, and clinical guidance."
+  description:
+    "Pneumonia screening with Grad-CAM heatmaps, evidence-based references, and clinical guidance."
 };
 
 export default function RootLayout({
@@ -13,7 +15,10 @@ export default function RootLayout({
 }>) {
   return (
     <html lang="en">
-      <body>{children}</body>
+      <body>
+        <AppNav />
+        {children}
+      </body>
     </html>
   );
 }

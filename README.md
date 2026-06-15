@@ -88,6 +88,7 @@ Response:
   "explanation": "Opacity detected in lower right lung",
   "recommendation": "Radiologist review recommended",
   "heatmap_url": "http://localhost:8000/static/heatmaps/example.png",
+  "heatmap_cam_url": "http://localhost:8000/static/heatmaps/example_cam.png",
   "suspicious_region": "lower right lung",
   "region_opacity_score": 0.14,
   "opacity_pattern": "focal",
@@ -102,6 +103,8 @@ Response:
 ```
 
 The backend saves generated heatmaps in `backend/static/heatmaps/` and serves them from `/static/heatmaps/...`.
+Each prediction returns both a default overlay (`heatmap_url`) and a raw Grad-CAM RGBA layer (`heatmap_cam_url`)
+used by the frontend opacity and threshold sliders.
 The structured finding fields power the physician action plan so recommendations can reference the specific
 heatmap region, opacity pattern, confidence, and probability for each uploaded X-ray.
 
@@ -190,9 +193,10 @@ FastAPI service.
    - Prediction card
    - Probability card
    - Confidence card
-   - Heatmap card
+   - Interactive Grad-CAM heatmap with opacity (0–100%) and threshold sliders
    - AI explanation card
    - Clinical recommendation card
+   - Evidence base summary with link to `/evidence`
 5. Click **View doctor recommendations** to open the physician action plan:
    - Triage guidance
    - Image-specific findings used for the plan

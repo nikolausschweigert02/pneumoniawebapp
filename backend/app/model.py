@@ -77,7 +77,7 @@ class PneumoniaPredictor:
         else:
             cam = self._postprocess_heatmap(cam, image.size)
 
-        heatmap_url = self._save_heatmap(image, cam)
+        heatmap_url, heatmap_cam_url = self._save_heatmap(image, cam)
         prediction = "PNEUMONIA" if probability >= 0.5 else "NORMAL"
         confidence = self._confidence(probability)
         opacity_pattern = self._opacity_pattern(prediction, region_score, region_scores)
@@ -89,6 +89,7 @@ class PneumoniaPredictor:
             "explanation": self._explanation(prediction, region_name, region_score),
             "recommendation": self._recommendation(prediction, probability),
             "heatmap_url": heatmap_url,
+            "heatmap_cam_url": heatmap_cam_url,
             "suspicious_region": region_name,
             "region_opacity_score": round(region_score, 4),
             "opacity_pattern": opacity_pattern,
@@ -324,15 +325,26 @@ class PneumoniaPredictor:
         mask = np.logical_or(left, right).astype(np.float32)
         return self._smooth_heatmap(mask, radius=max(width, height) * 0.012)
 
-    def _save_heatmap(self, image: Image.Image, cam: np.ndarray) -> str:
+    def _save_heatmap(self, image: Image.Image, cam: np.ndarray) -> tuple[str, str]:
         base = np.asarray(image, dtype=np.float32) / 255.0
         heat = self._colorize(cam)
         alpha = np.clip((cam - 0.10) / 0.90, 0.0, 1.0)[..., None] * 0.62
         overlay = np.clip((base * (1.0 - alpha)) + (heat * alpha), 0.0, 1.0)
         heatmap_image = Image.fromarray((overlay * 255).astype(np.uint8))
-        filename = f"{uuid.uuid4().hex}.png"
-        heatmap_image.save(self.heatmap_dir / filename)
-        return f"/static/heatmaps/{filename}"
+
+        cam_rgb = (heat * 255.0).astype(np.uint8)
+        cam_alpha = (np.clip(cam, 0.0, 1.0) * 255.0).astype(np.uint8)
+        cam_rgba = np.dstack([cam_rgb, cam_alpha])
+
+        file_id = uuid.uuid4().hex
+        overlay_filename = f"{file_id}.png"
+        cam_filename = f"{file_id}_cam.png"
+        heatmap_image.save(self.heatmap_dir / overlay_filename)
+        Image.fromarray(cam_rgba, mode="RGBA").save(self.heatmap_dir / cam_filename)
+        return (
+            f"/static/heatmaps/{overlay_filename}",
+            f"/static/heatmaps/{cam_filename}",
+        )
 
     def _colorize(self, heatmap: np.ndarray) -> np.ndarray:
         x = np.clip(heatmap, 0.0, 1.0)

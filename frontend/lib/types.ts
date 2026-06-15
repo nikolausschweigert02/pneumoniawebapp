@@ -8,6 +8,7 @@ export type PredictionResponse = {
   explanation: string;
   recommendation: string;
   heatmap_url: string;
+  heatmap_cam_url: string;
   suspicious_region: string;
   region_opacity_score: number;
   opacity_pattern: OpacityPattern;

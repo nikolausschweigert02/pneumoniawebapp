@@ -3,6 +3,8 @@
 import Image from "next/image";
 import Link from "next/link";
 import { useState } from "react";
+import HeatmapViewer from "@/components/HeatmapViewer";
+import { ScientificReferencesCompact } from "@/components/ScientificReferences";
 import type { StoredAnalysis } from "@/lib/types";
 
 function formatPercent(value: number) {
@@ -53,6 +55,9 @@ export default function ResultsPage() {
   });
 
   const heatmapUrl = analysis?.heatmap_url ? resolveHeatmapUrl(analysis.heatmap_url) : "";
+  const heatmapCamUrl = analysis?.heatmap_cam_url
+    ? resolveHeatmapUrl(analysis.heatmap_cam_url)
+    : heatmapUrl;
 
   if (!analysis) {
     return (
@@ -136,16 +141,12 @@ export default function ResultsPage() {
           </ResultCard>
 
           <ResultCard title="Grad-CAM heatmap">
-            <div className="overflow-hidden rounded-2xl bg-slate-950">
-              <Image
-                src={heatmapUrl}
-                alt="Grad-CAM heatmap visualization"
-                width={720}
-                height={720}
-                unoptimized
-                className="h-auto w-full object-contain"
-              />
-            </div>
+            <HeatmapViewer
+              originalImage={analysis.originalImage}
+              camUrl={heatmapCamUrl}
+              fallbackUrl={heatmapUrl}
+              alt="Grad-CAM heatmap visualization"
+            />
           </ResultCard>
 
           <ResultCard title="AI explanation" accent="md:col-span-2 border-indigo-200">
@@ -155,8 +156,8 @@ export default function ResultsPage() {
           <ResultCard title="Clinical recommendation" accent="md:col-span-2 border-sky-200">
             <p className="text-lg leading-8 text-slate-700">{analysis.recommendation}</p>
             <p className="mt-4 rounded-2xl bg-slate-50 p-4 text-sm leading-6 text-slate-500">
-              This MVP is decision-support software for demonstration and must not replace radiologist review,
-              clinical exam findings, prior imaging, or laboratory context.
+              Decision support only. Interpret alongside ATS/IDSA CAP guidance (Metlay et al., 2019),
+              radiologist review, clinical exam findings, prior imaging, and laboratory context.
             </p>
             <Link
               href="/recommendations"
@@ -166,6 +167,10 @@ export default function ResultsPage() {
             </Link>
           </ResultCard>
         </div>
+      </div>
+
+      <div className="mt-8">
+        <ScientificReferencesCompact />
       </div>
     </main>
   );

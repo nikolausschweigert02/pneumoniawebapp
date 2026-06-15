@@ -121,11 +121,12 @@ export default function Home() {
             Upload a chest X-ray and get an explainable pneumonia assessment.
           </h1>
           <p className="mt-6 max-w-2xl text-lg leading-8 text-slate-600">
-            The app returns a pneumonia prediction, probability, confidence level, Grad-CAM heatmap,
-            plain-language explanation, and clinical recommendation for physician review.
+            The app returns a pneumonia prediction, probability, confidence level, adjustable Grad-CAM
+            heatmap, plain-language explanation, and evidence-linked clinical recommendation for physician
+            review.
           </p>
           <div className="mt-8 grid gap-4 text-sm text-slate-600 sm:grid-cols-3">
-            {["ResNet18 inference", "Grad-CAM heatmap", "Clinical summary"].map((item) => (
+            {["ResNet18 inference", "Grad-CAM heatmap", "Guideline-linked summary"].map((item) => (
               <div key={item} className="rounded-2xl border border-white/70 bg-white/80 p-4 shadow-sm">
                 <span className="font-semibold text-slate-900">{item}</span>
               </div>
@@ -216,7 +217,12 @@ export default function Home() {
             {isAnalyzing ? "Analyzing..." : "Analyze X-ray"}
           </button>
           <p className="mt-4 text-xs leading-5 text-slate-500">
-            MVP only. Predictions must be reviewed by qualified clinicians and are not a standalone diagnosis.
+            Decision support only. Predictions must be reviewed by qualified clinicians and are not a
+            standalone diagnosis. See the{" "}
+            <a href="/evidence" className="font-semibold text-sky-700 hover:underline">
+              evidence page
+            </a>{" "}
+            for literature and guidelines.
           </p>
         </form>
       </section>
